@@ -1,9 +1,25 @@
 "use client";
 
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
+import { useCreditos } from "@/hooks/use-creditos";
+import { formatCurrency, calculateTotalSpent } from "@/lib/utils";
 import { FileText, Download, Calendar, Filter } from "lucide-react";
 
 export default function RelatoriosPage() {
+  const { creditos } = useCreditos();
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [customReport, setCustomReport] = useState({
+    type: 'execucao',
+    startDate: '',
+    endDate: ''
+  });
+  const [filters, setFilters] = useState({
+    showFilters: false,
+    period: 'all'
+  });
+
   const relatorios = [
     {
       id: 1,
@@ -35,6 +51,221 @@ export default function RelatoriosPage() {
     }
   ];
 
+  const handleDownloadReport = async (reportId: number, title: string) => {
+    setLoading(true);
+    setMessage('');
+    
+    try {
+      // Generate report data based on report type
+      let reportData;
+      
+      switch (reportId) {
+        case 1: // Execução Orçamentária
+          reportData = generateBudgetExecutionReport();
+          break;
+        case 2: // Créditos por Ação/Eixo
+          reportData = generateCreditsByActionReport();
+          break;
+        case 3: // Despesas Liquidadas
+          reportData = generateLiquidatedExpensesReport();
+          break;
+        case 4: // Prestação de Contas
+          reportData = generateAccountabilityReport();
+          break;
+        default:
+          throw new Error('Tipo de relatório não encontrado');
+      }
+      
+      downloadCSV(reportData, `${title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+      setMessage('Relatório baixado com sucesso!');
+    } catch (error) {
+      setMessage('Erro ao gerar relatório.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateCustomReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!customReport.startDate || !customReport.endDate) {
+      setMessage('Por favor, selecione as datas de início e fim.');
+      return;
+    }
+    
+    setLoading(true);
+    setMessage('');
+    
+    try {
+      let reportData;
+      
+      switch (customReport.type) {
+        case 'execucao':
+          reportData = generateBudgetExecutionReport(customReport.startDate, customReport.endDate);
+          break;
+        case 'despesas':
+          reportData = generateExpensesByPeriodReport(customReport.startDate, customReport.endDate);
+          break;
+        case 'creditos':
+          reportData = generateCreditsByActionReport();
+          break;
+        case 'prestacao':
+          reportData = generateAccountabilityReport(customReport.startDate, customReport.endDate);
+          break;
+        default:
+          throw new Error('Tipo de relatório inválido');
+      }
+      
+      const reportTypes = {
+        execucao: 'Execucao_Orcamentaria',
+        despesas: 'Despesas_por_Periodo',
+        creditos: 'Creditos_por_Status',
+        prestacao: 'Prestacao_de_Contas'
+      };
+      
+      downloadCSV(reportData, `${reportTypes[customReport.type as keyof typeof reportTypes]}_${customReport.startDate}_${customReport.endDate}.csv`);
+      setMessage('Relatório personalizado gerado com sucesso!');
+    } catch (error) {
+      setMessage('Erro ao gerar relatório personalizado.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateBudgetExecutionReport = (startDate?: string, endDate?: string) => {
+    const creditosList = Object.values(creditos);
+    
+    return creditosList.map(credito => ({
+      'Código do Crédito': credito.creditoCodigo,
+      'Ano': credito.anoExercicio,
+      'Ação/Eixo': credito.acaoEixo,
+      'Valor Global': formatCurrency(credito.valorGlobal),
+      'Valor Gasto': formatCurrency(calculateTotalSpent(credito.despesas || {})),
+      'Saldo Atual': formatCurrency(credito.saldoAtual),
+      'Percentual Executado': `${((calculateTotalSpent(credito.despesas || {}) / credito.valorGlobal) * 100).toFixed(2)}%`
+    }));
+  };
+
+  const generateCreditsByActionReport = () => {
+    const creditosList = Object.values(creditos);
+    const groupedByAction = creditosList.reduce((acc, credito) => {
+      const action = credito.acaoEixo;
+      if (!acc[action]) {
+        acc[action] = {
+          totalCreditos: 0,
+          valorTotal: 0,
+          valorGasto: 0
+        };
+      }
+      acc[action].totalCreditos++;
+      acc[action].valorTotal += credito.valorGlobal;
+      acc[action].valorGasto += calculateTotalSpent(credito.despesas || {});
+      return acc;
+    }, {} as Record<string, any>);
+    
+    return Object.entries(groupedByAction).map(([action, data]) => ({
+      'Ação/Eixo': action,
+      'Total de Créditos': data.totalCreditos,
+      'Valor Total': formatCurrency(data.valorTotal),
+      'Valor Gasto': formatCurrency(data.valorGasto),
+      'Saldo Disponível': formatCurrency(data.valorTotal - data.valorGasto)
+    }));
+  };
+
+  const generateLiquidatedExpensesReport = () => {
+    const allExpenses: any[] = [];
+    
+    Object.values(creditos).forEach(credito => {
+      Object.values(credito.despesas || {}).forEach(despesa => {
+        if (despesa.status === 'Liquidado' || despesa.status === 'Pago') {
+          allExpenses.push({
+            'Código do Crédito': credito.creditoCodigo,
+            'Processo SEI': despesa.processoSEI,
+            'Objeto': despesa.objeto,
+            'Valor Total': formatCurrency(despesa.valorTotal),
+            'Status': despesa.status,
+            'Data de Empenho': despesa.dataEmpenho || '-',
+            'Nota de Empenho': despesa.notaEmpenho || '-',
+            'Data de Pagamento': despesa.dataPagamento || '-'
+          });
+        }
+      });
+    });
+    
+    return allExpenses;
+  };
+
+  const generateAccountabilityReport = (startDate?: string, endDate?: string) => {
+    const creditosList = Object.values(creditos);
+    
+    return creditosList.map(credito => {
+      const despesas = Object.values(credito.despesas || {});
+      const totalDespesas = despesas.length;
+      const despesasComPrestacao = despesas.filter(d => d.dataPrestacaoContas).length;
+      
+      return {
+        'Código do Crédito': credito.creditoCodigo,
+        'Ação/Eixo': credito.acaoEixo,
+        'Total de Despesas': totalDespesas,
+        'Despesas com Prestação': despesasComPrestacao,
+        'Percentual de Compliance': totalDespesas > 0 ? `${((despesasComPrestacao / totalDespesas) * 100).toFixed(2)}%` : '0%',
+        'Status': despesasComPrestacao === totalDespesas ? 'Completo' : 'Pendente'
+      };
+    });
+  };
+
+  const generateExpensesByPeriodReport = (startDate: string, endDate: string) => {
+    const allExpenses: any[] = [];
+    
+    Object.values(creditos).forEach(credito => {
+      Object.values(credito.despesas || {}).forEach(despesa => {
+        const expenseDate = despesa.dataEmpenho;
+        if (expenseDate && expenseDate >= startDate && expenseDate <= endDate) {
+          allExpenses.push({
+            'Código do Crédito': credito.creditoCodigo,
+            'Data de Empenho': despesa.dataEmpenho,
+            'Processo SEI': despesa.processoSEI,
+            'Objeto': despesa.objeto,
+            'Valor Total': formatCurrency(despesa.valorTotal),
+            'Status': despesa.status
+          });
+        }
+      });
+    });
+    
+    return allExpenses;
+  };
+
+  const downloadCSV = (data: any[], filename: string) => {
+    if (data.length === 0) {
+      throw new Error('Nenhum dado encontrado para o relatório');
+    }
+    
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => 
+        headers.map(header => {
+          const value = row[header];
+          // Escape commas and quotes in CSV
+          return typeof value === 'string' && (value.includes(',') || value.includes('"')) 
+            ? `"${value.replace(/"/g, '""')}"` 
+            : value;
+        }).join(',')
+      )
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -43,16 +274,72 @@ export default function RelatoriosPage() {
           <p className="text-gray-600">Gere e baixe relatórios do sistema</p>
         </div>
         <div className="flex space-x-3">
-          <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+          <button 
+            onClick={() => setFilters(prev => ({ ...prev, showFilters: !prev.showFilters }))}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          >
             <Filter className="w-4 h-4 mr-2" />
             Filtros
           </button>
-          <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-            <Calendar className="w-4 h-4 mr-2" />
-            Período
-          </button>
+          <select
+            value={filters.period}
+            onChange={(e) => setFilters(prev => ({ ...prev, period: e.target.value }))}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <option value="all">Todos os períodos</option>
+            <option value="2024">2024</option>
+            <option value="2023">2023</option>
+            <option value="2022">2022</option>
+          </select>
         </div>
       </div>
+
+      {message && (
+        <div className={`p-3 rounded-md text-sm ${
+          message.includes('sucesso') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+        }`}>
+          {message}
+        </div>
+      )}
+
+      {filters.showFilters && (
+        <Card className="p-4">
+          <h4 className="font-medium text-gray-900 mb-3">Filtros Avançados</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Status do Crédito
+              </label>
+              <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
+                <option>Todos</option>
+                <option>Disponível</option>
+                <option>Atenção</option>
+                <option>Crítico</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ação/Eixo
+              </label>
+              <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
+                <option>Todos</option>
+                <option>VALORIZAÇÃO DOS PROFISSIONAIS</option>
+                <option>MODERNIZAÇÃO DAS UNIDADES</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Valor Mínimo
+              </label>
+              <input 
+                type="number" 
+                placeholder="R$ 0,00"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {relatorios.map((relatorio) => (
@@ -82,15 +369,16 @@ export default function RelatoriosPage() {
                 </div>
               </div>
               <button 
+                onClick={() => handleDownloadReport(relatorio.id, relatorio.titulo)}
                 className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
                   relatorio.status === 'Disponível'
                     ? 'text-blue-600 bg-blue-100 hover:bg-blue-200'
                     : 'text-gray-400 bg-gray-100 cursor-not-allowed'
                 }`}
-                disabled={relatorio.status !== 'Disponível'}
+                disabled={relatorio.status !== 'Disponível' || loading}
               >
                 <Download className="w-4 h-4 mr-1" />
-                Baixar
+                {loading ? 'Gerando...' : 'Baixar'}
               </button>
             </div>
           </Card>
@@ -101,43 +389,57 @@ export default function RelatoriosPage() {
         <h3 className="text-lg font-medium text-gray-900 mb-4">
           Gerar Relatório Personalizado
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tipo de Relatório
-            </label>
-            <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>Execução Orçamentária</option>
-              <option>Despesas por Período</option>
-              <option>Créditos por Status</option>
-              <option>Prestação de Contas</option>
-            </select>
+        <form onSubmit={handleGenerateCustomReport} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tipo de Relatório
+              </label>
+              <select 
+                value={customReport.type}
+                onChange={(e) => setCustomReport(prev => ({ ...prev, type: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="execucao">Execução Orçamentária</option>
+                <option value="despesas">Despesas por Período</option>
+                <option value="creditos">Créditos por Status</option>
+                <option value="prestacao">Prestação de Contas</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Data Início
+              </label>
+              <input 
+                type="date" 
+                value={customReport.startDate}
+                onChange={(e) => setCustomReport(prev => ({ ...prev, startDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Data Fim
+              </label>
+              <input 
+                type="date" 
+                value={customReport.endDate}
+                onChange={(e) => setCustomReport(prev => ({ ...prev, endDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Data Início
-            </label>
-            <input 
-              type="date" 
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <div className="mt-4">
+            <button 
+              type="submit"
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              {loading ? 'Gerando...' : 'Gerar Relatório'}
+            </button>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Data Fim
-            </label>
-            <input 
-              type="date" 
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-        <div className="mt-4">
-          <button className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-            <FileText className="w-4 h-4 mr-2" />
-            Gerar Relatório
-          </button>
-        </div>
+        </form>
       </Card>
     </div>
   );

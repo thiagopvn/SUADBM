@@ -7,11 +7,14 @@ import { LineChartComponent } from "@/components/charts/line-chart";
 import { PieChartComponent } from "@/components/charts/pie-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockData } from "@/firebase/mockData";
 import { formatCurrency, formatDate, getStatusColor, calculateTotalSpent } from "@/lib/utils";
+import { useCreditos } from "@/hooks/use-creditos";
+import { useFirebaseInit } from "@/hooks/use-firebase-init";
 import type { DashboardData, DespesaWithCredito } from "@/types";
 
 export default function DashboardPage() {
+  const { initialized, loading: initLoading, error: initError } = useFirebaseInit();
+  const { creditos, loading: creditosLoading, error: creditosError } = useCreditos();
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     totalGlobal: 0,
     totalGasto: 0,
@@ -23,27 +26,29 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    // Processar dados mockados
-    const creditos = Object.values(mockData.creditos);
+    if (!initialized || Object.keys(creditos).length === 0) return;
     
-    // Calcular totais
-    const totalGlobal = creditos.reduce((sum, c) => sum + c.valorGlobal, 0);
-    const totalGasto = creditos.reduce((sum, c) => {
-      return sum + calculateTotalSpent(c.despesas);
+    // Process Firebase data
+    const creditosList = Object.values(creditos);
+    
+    // Calculate totals
+    const totalGlobal = creditosList.reduce((sum, c) => sum + c.valorGlobal, 0);
+    const totalGasto = creditosList.reduce((sum, c) => {
+      return sum + calculateTotalSpent(c.despesas || {});
     }, 0);
     const saldoDisponivel = totalGlobal - totalGasto;
     
-    // Dados para o gráfico de linha (evolução por ano)
-    const chartData = creditos
+    // Data for line chart (evolution by year)
+    const chartData = creditosList
       .map(c => ({
         ano: c.anoExercicio,
         valor: c.valorGlobal
       }))
       .sort((a, b) => a.ano - b.ano);
     
-    // Dados para o gráfico de pizza (distribuição por ação/eixo)
+    // Data for pie chart (distribution by action/axis)
     const acaoMap = new Map();
-    creditos.forEach(c => {
+    creditosList.forEach(c => {
       const current = acaoMap.get(c.acaoEixo) || 0;
       acaoMap.set(c.acaoEixo, current + c.valorGlobal);
     });
@@ -53,10 +58,10 @@ export default function DashboardPage() {
       value
     }));
     
-    // Despesas recentes
+    // Recent expenses
     const allDespesas: DespesaWithCredito[] = [];
-    creditos.forEach(c => {
-      Object.values(c.despesas).forEach((d) => {
+    creditosList.forEach(c => {
+      Object.values(c.despesas || {}).forEach((d) => {
         allDespesas.push({
           ...d,
           creditoCodigo: c.creditoCodigo
@@ -76,12 +81,48 @@ export default function DashboardPage() {
       totalGlobal,
       totalGasto,
       saldoDisponivel,
-      totalCreditos: creditos.length,
+      totalCreditos: creditosList.length,
       chartData,
       pieData,
       recentDespesas
     });
-  }, []);
+  }, [initialized, creditos]);
+
+  // Loading state
+  if (initLoading || creditosLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <div className="flex justify-center items-center h-64">
+              <div className="text-gray-500">
+                {initLoading ? 'Inicializando sistema...' : 'Carregando dashboard...'}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Error state
+  if (initError || creditosError) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <div className="flex justify-center items-center h-64">
+              <div className="text-red-500">
+                Erro ao carregar dados: {initError || creditosError}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

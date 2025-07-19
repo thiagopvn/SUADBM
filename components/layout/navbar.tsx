@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 import { 
   Home, 
   DollarSign, 
@@ -20,6 +21,17 @@ const navItems = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const { logout, loading } = useAuth();
+
+  const handleLogout = async () => {
+    if (loading) return;
+    
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   return (
     <nav className="bg-white border-b border-gray-200">
@@ -56,9 +68,13 @@ export function Navbar() {
             </div>
           </div>
           <div className="flex items-center">
-            <button className="flex items-center text-gray-500 hover:text-gray-700">
+            <button 
+              onClick={handleLogout}
+              disabled={loading}
+              className="flex items-center text-gray-500 hover:text-gray-700 disabled:opacity-50"
+            >
               <LogOut className="w-4 h-4 mr-2" />
-              Sair
+              {loading ? 'Saindo...' : 'Sair'}
             </button>
           </div>
         </div>

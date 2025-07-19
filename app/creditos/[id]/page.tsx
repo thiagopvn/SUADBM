@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { mockData } from "@/firebase/mockData";
 import { formatCurrency, formatDate, getStatusColor, calculateTotalSpent } from "@/lib/utils";
 import type { Credito, Despesa } from "@/types";
+import { useCreditos } from "@/hooks/use-creditos";
+import { useDespesas } from "@/hooks/use-despesas";
+import { DespesaForm } from "@/components/forms/despesa-form";
 import { 
   ArrowLeft, 
   Plus, 
@@ -22,24 +25,29 @@ import {
 export default function CreditoDetalhesPage() {
   const params = useParams();
   const router = useRouter();
+  const creditoId = params.id as string;
+  const { creditos: creditosData, loading: creditosLoading, refetch } = useCreditos();
+  const { createDespesa, updateDespesa, deleteDespesa, loading: despesasLoading } = useDespesas(creditoId);
+  
   const [credito, setCredito] = useState<Credito | null>(null);
   const [despesas, setDespesas] = useState<Despesa[]>([]);
   const [filteredDespesas, setFilteredDespesas] = useState<Despesa[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
+  const [showDespesaForm, setShowDespesaForm] = useState(false);
+  const [editingDespesa, setEditingDespesa] = useState<Despesa | null>(null);
 
   useEffect(() => {
-    // Carregar dados do crédito específico
-    const creditoId = params.id as string;
-    const creditoData = mockData.creditos[creditoId];
+    // Load credit data from Firebase
+    const creditoData = creditosData[creditoId];
     
     if (creditoData) {
       setCredito(creditoData);
-      const despesasList = Object.values(creditoData.despesas);
+      const despesasList = Object.values(creditoData.despesas || {});
       setDespesas(despesasList);
       setFilteredDespesas(despesasList);
     }
-  }, [params.id]);
+  }, [creditoId, creditosData]);
 
   useEffect(() => {
     // Aplicar filtros
@@ -59,8 +67,67 @@ export default function CreditoDetalhesPage() {
     setFilteredDespesas(filtered);
   }, [searchTerm, statusFilter, despesas]);
 
+  const handleCreateDespesa = async (despesaData: Omit<Despesa, 'id'>) => {
+    try {
+      await createDespesa(despesaData);
+      await refetch(); // Refresh credit data
+      setShowDespesaForm(false);
+    } catch (error) {
+      console.error('Failed to create despesa:', error);
+    }
+  };
+
+  const handleUpdateDespesa = async (despesaData: Omit<Despesa, 'id'>) => {
+    if (!editingDespesa) return;
+    
+    try {
+      await updateDespesa(editingDespesa.id, despesaData);
+      await refetch(); // Refresh credit data
+      setEditingDespesa(null);
+    } catch (error) {
+      console.error('Failed to update despesa:', error);
+    }
+  };
+
+  const handleDeleteDespesa = async (despesaId: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta despesa?')) return;
+    
+    try {
+      await deleteDespesa(despesaId);
+      await refetch(); // Refresh credit data
+    } catch (error) {
+      console.error('Failed to delete despesa:', error);
+    }
+  };
+
+  if (creditosLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <div className="flex justify-center items-center h-64">
+              <div className="text-gray-500">Carregando detalhes do crédito...</div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (!credito) {
-    return <div>Carregando...</div>;
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <div className="flex justify-center items-center h-64">
+              <div className="text-red-500">Crédito não encontrado!</div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   const totalGasto = credito ? calculateTotalSpent(credito.despesas) : 0;
@@ -142,7 +209,11 @@ export default function CreditoDetalhesPage() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Despesas</CardTitle>
-                <button className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center gap-2">
+                <button 
+                  onClick={() => setShowDespesaForm(true)}
+                  className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center gap-2"
+                  disabled={despesasLoading}
+                >
                   <Plus className="w-4 h-4" />
                   Adicionar Nova Despesa
                 </button>
@@ -255,10 +326,18 @@ export default function CreditoDetalhesPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex gap-2">
-                            <button className="text-indigo-600 hover:text-indigo-900">
+                            <button 
+                              onClick={() => setEditingDespesa(despesa)}
+                              className="text-indigo-600 hover:text-indigo-900"
+                              disabled={despesasLoading}
+                            >
                               <Edit className="w-4 h-4" />
                             </button>
-                            <button className="text-red-600 hover:text-red-900">
+                            <button 
+                              onClick={() => handleDeleteDespesa(despesa.id)}
+                              className="text-red-600 hover:text-red-900"
+                              disabled={despesasLoading}
+                            >
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -267,11 +346,36 @@ export default function CreditoDetalhesPage() {
                     ))}
                   </tbody>
                 </table>
+                
+                {filteredDespesas.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    {despesas.length === 0 
+                      ? "Nenhuma despesa encontrada. Adicione a primeira despesa!"
+                      : "Nenhuma despesa corresponde aos filtros aplicados."
+                    }
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
       </main>
+
+      {showDespesaForm && (
+        <DespesaForm
+          onSubmit={handleCreateDespesa}
+          onCancel={() => setShowDespesaForm(false)}
+        />
+      )}
+
+      {editingDespesa && (
+        <DespesaForm
+          onSubmit={handleUpdateDespesa}
+          onCancel={() => setEditingDespesa(null)}
+          initialData={editingDespesa}
+          isEditing={true}
+        />
+      )}
     </div>
   );
 }

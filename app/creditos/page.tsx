@@ -8,25 +8,29 @@ import { Badge } from "@/components/ui/badge";
 import { mockData } from "@/firebase/mockData";
 import { formatCurrency, calculateTotalSpent } from "@/lib/utils";
 import { Plus, Search, Filter } from "lucide-react";
-import type { CreditoWithCalculations } from "@/types";
+import type { CreditoWithCalculations, Credito } from "@/types";
+import { useCreditos } from "@/hooks/use-creditos";
+import { CreditoForm } from "@/components/forms/credito-form";
 
 export default function CreditosPage() {
   const router = useRouter();
+  const { creditos: creditosData, loading, error, createCredito } = useCreditos();
   const [creditos, setCreditos] = useState<CreditoWithCalculations[]>([]);
   const [filteredCreditos, setFilteredCreditos] = useState<CreditoWithCalculations[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>("todos");
+  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    // Carregar dados mockados
-    const creditosList = Object.values(mockData.creditos).map(credito => ({
+    // Convert Firebase data to list with calculations
+    const creditosList = Object.values(creditosData).map(credito => ({
       ...credito,
       valorGasto: calculateTotalSpent(credito.despesas)
     }));
     
     setCreditos(creditosList);
     setFilteredCreditos(creditosList);
-  }, []);
+  }, [creditosData]);
 
   useEffect(() => {
     // Aplicar filtros
@@ -50,6 +54,45 @@ export default function CreditosPage() {
 
   const years = [...new Set(creditos.map(c => c.anoExercicio))].sort((a, b) => b - a);
 
+  const handleCreateCredito = async (creditoData: Omit<Credito, 'id'>) => {
+    try {
+      await createCredito(creditoData);
+      setShowForm(false);
+    } catch (error) {
+      console.error('Failed to create credito:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <div className="flex justify-center items-center h-64">
+              <div className="text-gray-500">Carregando créditos...</div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <div className="flex justify-center items-center h-64">
+              <div className="text-red-500">Erro ao carregar créditos: {error}</div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -60,7 +103,10 @@ export default function CreditosPage() {
             <h1 className="text-2xl font-semibold text-gray-900">
               Gestão de Créditos
             </h1>
-            <button className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center gap-2">
+            <button 
+              onClick={() => setShowForm(true)}
+              className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center gap-2"
+            >
               <Plus className="w-4 h-4" />
               Adicionar Novo Crédito
             </button>
@@ -169,8 +215,26 @@ export default function CreditosPage() {
               </tbody>
             </table>
           </div>
+
+          {filteredCreditos.length === 0 && !loading && (
+            <div className="bg-white shadow rounded-md p-8 text-center">
+              <div className="text-gray-500">
+                {creditos.length === 0 
+                  ? "Nenhum crédito encontrado. Adicione o primeiro crédito!"
+                  : "Nenhum crédito corresponde aos filtros aplicados."
+                }
+              </div>
+            </div>
+          )}
         </div>
       </main>
+
+      {showForm && (
+        <CreditoForm
+          onSubmit={handleCreateCredito}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
     </div>
   );
 }

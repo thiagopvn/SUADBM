@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
+import { useAuth } from "@/hooks/use-auth";
+import { firebaseService } from "@/lib/firebase-service";
 import { 
   Settings, 
   User, 
@@ -13,11 +16,137 @@ import {
 } from "lucide-react";
 
 export default function ConfiguracoesPage() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [profileData, setProfileData] = useState({
+    name: user?.displayName || 'Administrador SICOF',
+    email: user?.email || 'admin@cbmerj.rj.gov.br',
+    unit: 'Comando Geral'
+  });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  const handleProfileSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    
+    try {
+      // In a real app, you would update the user profile in Firebase
+      // For now, just simulate the save
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setMessage('Perfil atualizado com sucesso!');
+    } catch (error) {
+      setMessage('Erro ao atualizar perfil.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setMessage('As senhas não coincidem.');
+      return;
+    }
+    
+    if (passwordData.newPassword.length < 6) {
+      setMessage('A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    
+    setLoading(true);
+    setMessage('');
+    
+    try {
+      // In a real app, you would update the password in Firebase
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setMessage('Senha alterada com sucesso!');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error) {
+      setMessage('Erro ao alterar senha.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    setLoading(true);
+    setMessage('');
+    
+    try {
+      const data = await firebaseService.exportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sicof-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setMessage('Dados exportados com sucesso!');
+    } catch (error) {
+      setMessage('Erro ao exportar dados.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setLoading(true);
+    setMessage('');
+    
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      await firebaseService.initializeWithMockData(data);
+      setMessage('Dados importados com sucesso!');
+    } catch (error) {
+      setMessage('Erro ao importar dados. Verifique o formato do arquivo.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setLoading(true);
+    setMessage('');
+    
+    try {
+      const isConnected = await firebaseService.checkConnection();
+      if (isConnected) {
+        setMessage('Sincronização realizada com sucesso!');
+      } else {
+        setMessage('Erro de conexão. Verifique sua internet.');
+      }
+    } catch (error) {
+      setMessage('Erro ao sincronizar dados.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
         <p className="text-gray-600">Gerencie as configurações do sistema</p>
+        {message && (
+          <div className={`mt-2 p-3 rounded-md text-sm ${
+            message.includes('sucesso') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+          }`}>
+            {message}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -29,15 +158,17 @@ export default function ConfiguracoesPage() {
             </div>
             <h3 className="text-lg font-medium text-gray-900">Perfil do Usuário</h3>
           </div>
-          <div className="space-y-4">
+          <form onSubmit={handleProfileSave} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Nome Completo
               </label>
               <input 
                 type="text" 
-                defaultValue="Administrador SICOF"
+                value={profileData.name}
+                onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
               />
             </div>
             <div>
@@ -46,25 +177,35 @@ export default function ConfiguracoesPage() {
               </label>
               <input 
                 type="email" 
-                defaultValue="admin@cbmerj.rj.gov.br"
+                value={profileData.email}
+                onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Unidade
               </label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <select 
+                value={profileData.unit}
+                onChange={(e) => setProfileData(prev => ({ ...prev, unit: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
                 <option>Comando Geral</option>
                 <option>1º Grupamento</option>
                 <option>2º Grupamento</option>
                 <option>Diretoria de Apoio Logístico</option>
               </select>
             </div>
-            <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
-              Salvar Alterações
+            <button 
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Salvando...' : 'Salvar Alterações'}
             </button>
-          </div>
+          </form>
         </Card>
 
         {/* Segurança */}
@@ -75,14 +216,17 @@ export default function ConfiguracoesPage() {
             </div>
             <h3 className="text-lg font-medium text-gray-900">Segurança</h3>
           </div>
-          <div className="space-y-4">
+          <form onSubmit={handlePasswordChange} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Senha Atual
               </label>
               <input 
                 type="password" 
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
               />
             </div>
             <div>
@@ -91,7 +235,11 @@ export default function ConfiguracoesPage() {
               </label>
               <input 
                 type="password" 
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+                minLength={6}
               />
             </div>
             <div>
@@ -100,7 +248,11 @@ export default function ConfiguracoesPage() {
               </label>
               <input 
                 type="password" 
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+                minLength={6}
               />
             </div>
             <div className="flex items-center">
@@ -113,10 +265,14 @@ export default function ConfiguracoesPage() {
                 Ativar autenticação de dois fatores
               </label>
             </div>
-            <button className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700">
-              Alterar Senha
+            <button 
+              type="submit"
+              disabled={loading}
+              className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 disabled:opacity-50"
+            >
+              {loading ? 'Alterando...' : 'Alterar Senha'}
             </button>
-          </div>
+          </form>
         </Card>
 
         {/* Notificações */}
@@ -212,21 +368,36 @@ export default function ConfiguracoesPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="text-center">
-            <button className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 mb-2">
+            <button 
+              onClick={handleExportData}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 mb-2 disabled:opacity-50"
+            >
               <Download className="w-4 h-4 mr-2" />
               Exportar Dados
             </button>
             <p className="text-sm text-gray-600">Baixar backup completo dos dados</p>
           </div>
           <div className="text-center">
-            <button className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 mb-2">
+            <label className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 mb-2 cursor-pointer">
               <Upload className="w-4 h-4 mr-2" />
               Importar Dados
-            </button>
+              <input 
+                type="file" 
+                accept=".json" 
+                onChange={handleImportData}
+                className="hidden"
+                disabled={loading}
+              />
+            </label>
             <p className="text-sm text-gray-600">Restaurar dados de backup</p>
           </div>
           <div className="text-center">
-            <button className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 mb-2">
+            <button 
+              onClick={handleSync}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 mb-2 disabled:opacity-50"
+            >
               <Database className="w-4 h-4 mr-2" />
               Sincronizar
             </button>

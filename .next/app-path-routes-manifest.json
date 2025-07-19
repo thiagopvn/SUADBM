@@ -1,0 +1,8 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/creditos/[id]/page": "/creditos/[id]",
+  "/creditos/page": "/creditos",
+  "/page": "/",
+  "/relatorios/page": "/relatorios",
+  "/configuracoes/page": "/configuracoes"
+}

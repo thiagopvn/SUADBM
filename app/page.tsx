@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate, getStatusColor, calculateTotalSpent } from "@/lib/utils";
 import { useCreditos } from "@/hooks/useFirebase";
+import { FirebaseTest } from "@/components/debug/FirebaseTest";
 import type { DashboardData, DespesaWithCredito } from "@/types";
 
 export default function DashboardPage() {
@@ -131,6 +132,8 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-semibold text-gray-900 mb-6">
             Dashboard - Visão Geral
           </h1>
+          
+          <FirebaseTest />
           
           <SummaryCards
             totalGlobal={dashboardData.totalGlobal}

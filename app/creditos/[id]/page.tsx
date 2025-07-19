@@ -5,11 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { Navbar } from "@/components/layout/navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockData } from "@/firebase/mockData";
 import { formatCurrency, formatDate, getStatusColor, calculateTotalSpent } from "@/lib/utils";
 import type { Credito, Despesa } from "@/types";
-import { useCreditos } from "@/hooks/use-creditos";
-import { useDespesas } from "@/hooks/use-despesas";
+import { useCredito } from "@/hooks/useFirebase";
 import { DespesaForm } from "@/components/forms/despesa-form";
 import { 
   ArrowLeft, 
@@ -26,10 +24,8 @@ export default function CreditoDetalhesPage() {
   const params = useParams();
   const router = useRouter();
   const creditoId = params.id as string;
-  const { creditos: creditosData, loading: creditosLoading, refetch } = useCreditos();
-  const { createDespesa, updateDespesa, deleteDespesa, loading: despesasLoading } = useDespesas(creditoId);
+  const { credito, loading, error, adicionarDespesa, atualizarDespesa, removerDespesa } = useCredito(creditoId);
   
-  const [credito, setCredito] = useState<Credito | null>(null);
   const [despesas, setDespesas] = useState<Despesa[]>([]);
   const [filteredDespesas, setFilteredDespesas] = useState<Despesa[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -38,16 +34,12 @@ export default function CreditoDetalhesPage() {
   const [editingDespesa, setEditingDespesa] = useState<Despesa | null>(null);
 
   useEffect(() => {
-    // Load credit data from Firebase
-    const creditoData = creditosData[creditoId];
-    
-    if (creditoData) {
-      setCredito(creditoData);
-      const despesasList = Object.values(creditoData.despesas || {});
+    if (credito) {
+      const despesasList = Object.values(credito.despesas || {});
       setDespesas(despesasList);
       setFilteredDespesas(despesasList);
     }
-  }, [creditoId, creditosData]);
+  }, [credito]);
 
   useEffect(() => {
     // Aplicar filtros
@@ -69,8 +61,7 @@ export default function CreditoDetalhesPage() {
 
   const handleCreateDespesa = async (despesaData: Omit<Despesa, 'id'>) => {
     try {
-      await createDespesa(despesaData);
-      await refetch(); // Refresh credit data
+      await adicionarDespesa(despesaData);
       setShowDespesaForm(false);
     } catch (error) {
       console.error('Failed to create despesa:', error);
@@ -81,8 +72,7 @@ export default function CreditoDetalhesPage() {
     if (!editingDespesa) return;
     
     try {
-      await updateDespesa(editingDespesa.id, despesaData);
-      await refetch(); // Refresh credit data
+      await atualizarDespesa(editingDespesa.id, despesaData);
       setEditingDespesa(null);
     } catch (error) {
       console.error('Failed to update despesa:', error);
@@ -93,14 +83,13 @@ export default function CreditoDetalhesPage() {
     if (!confirm('Tem certeza que deseja excluir esta despesa?')) return;
     
     try {
-      await deleteDespesa(despesaId);
-      await refetch(); // Refresh credit data
+      await removerDespesa(despesaId);
     } catch (error) {
       console.error('Failed to delete despesa:', error);
     }
   };
 
-  if (creditosLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -212,7 +201,6 @@ export default function CreditoDetalhesPage() {
                 <button 
                   onClick={() => setShowDespesaForm(true)}
                   className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center gap-2"
-                  disabled={despesasLoading}
                 >
                   <Plus className="w-4 h-4" />
                   Adicionar Nova Despesa
@@ -329,14 +317,12 @@ export default function CreditoDetalhesPage() {
                             <button 
                               onClick={() => setEditingDespesa(despesa)}
                               className="text-indigo-600 hover:text-indigo-900"
-                              disabled={despesasLoading}
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button 
                               onClick={() => handleDeleteDespesa(despesa.id)}
                               className="text-red-600 hover:text-red-900"
-                              disabled={despesasLoading}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>

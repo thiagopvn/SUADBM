@@ -5,17 +5,16 @@ import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/layout/navbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockData } from "@/firebase/mockData";
 import { formatCurrency, calculateTotalSpent } from "@/lib/utils";
 import { Plus, Search, Filter } from "lucide-react";
 import type { CreditoWithCalculations, Credito } from "@/types";
-import { useCreditos } from "@/hooks/use-creditos";
+import { useCreditos } from "@/hooks/useFirebase";
 import { CreditoForm } from "@/components/forms/credito-form";
 
 export default function CreditosPage() {
   const router = useRouter();
-  const { creditos: creditosData, loading, error, createCredito } = useCreditos();
-  const [creditos, setCreditos] = useState<CreditoWithCalculations[]>([]);
+  const { creditos: creditosData, loading, error, adicionarCredito } = useCreditos();
+  const [creditosCalculated, setCreditosCalculated] = useState<CreditoWithCalculations[]>([]);
   const [filteredCreditos, setFilteredCreditos] = useState<CreditoWithCalculations[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>("todos");
@@ -23,18 +22,18 @@ export default function CreditosPage() {
 
   useEffect(() => {
     // Convert Firebase data to list with calculations
-    const creditosList = Object.values(creditosData).map(credito => ({
+    const creditosList = creditosData.map(credito => ({
       ...credito,
-      valorGasto: calculateTotalSpent(credito.despesas)
+      valorGasto: calculateTotalSpent(credito.despesas || {})
     }));
     
-    setCreditos(creditosList);
+    setCreditosCalculated(creditosList);
     setFilteredCreditos(creditosList);
   }, [creditosData]);
 
   useEffect(() => {
     // Aplicar filtros
-    let filtered = creditos;
+    let filtered = creditosCalculated;
 
     if (searchTerm) {
       filtered = filtered.filter(credito => 
@@ -50,13 +49,13 @@ export default function CreditosPage() {
     }
 
     setFilteredCreditos(filtered);
-  }, [searchTerm, selectedYear, creditos]);
+  }, [searchTerm, selectedYear, creditosCalculated]);
 
-  const years = [...new Set(creditos.map(c => c.anoExercicio))].sort((a, b) => b - a);
+  const years = [...new Set(creditosCalculated.map(c => c.anoExercicio))].sort((a, b) => b - a);
 
   const handleCreateCredito = async (creditoData: Omit<Credito, 'id'>) => {
     try {
-      await createCredito(creditoData);
+      await adicionarCredito(creditoData);
       setShowForm(false);
     } catch (error) {
       console.error('Failed to create credito:', error);
@@ -219,7 +218,7 @@ export default function CreditosPage() {
           {filteredCreditos.length === 0 && !loading && (
             <div className="bg-white shadow rounded-md p-8 text-center">
               <div className="text-gray-500">
-                {creditos.length === 0 
+                {creditosCalculated.length === 0 
                   ? "Nenhum crédito encontrado. Adicione o primeiro crédito!"
                   : "Nenhum crédito corresponde aos filtros aplicados."
                 }

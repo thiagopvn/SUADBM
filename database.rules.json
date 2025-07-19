@@ -1,0 +1,14 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": true,
+    "creditos": {
+      ".indexOn": ["anoExercicio", "acaoEixo", "creditoCodigo"],
+      "$creditoId": {
+        "despesas": {
+          ".indexOn": ["status", "dataEmpenho", "dataPagamento"]
+        }
+      }
+    }
+  }
+}

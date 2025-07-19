@@ -8,13 +8,11 @@ import { PieChartComponent } from "@/components/charts/pie-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate, getStatusColor, calculateTotalSpent } from "@/lib/utils";
-import { useCreditos } from "@/hooks/use-creditos";
-import { useFirebaseInit } from "@/hooks/use-firebase-init";
+import { useCreditos } from "@/hooks/useFirebase";
 import type { DashboardData, DespesaWithCredito } from "@/types";
 
 export default function DashboardPage() {
-  const { initialized, loading: initLoading, error: initError } = useFirebaseInit();
-  const { creditos, loading: creditosLoading, error: creditosError } = useCreditos();
+  const { creditos, loading, error } = useCreditos();
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     totalGlobal: 0,
     totalGasto: 0,
@@ -26,10 +24,10 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    if (!initialized || Object.keys(creditos).length === 0) return;
+    if (creditos.length === 0) return;
     
     // Process Firebase data
-    const creditosList = Object.values(creditos);
+    const creditosList = creditos;
     
     // Calculate totals
     const totalGlobal = creditosList.reduce((sum, c) => sum + c.valorGlobal, 0);
@@ -86,10 +84,10 @@ export default function DashboardPage() {
       pieData,
       recentDespesas
     });
-  }, [initialized, creditos]);
+  }, [creditos]);
 
   // Loading state
-  if (initLoading || creditosLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -97,7 +95,7 @@ export default function DashboardPage() {
           <div className="px-4 py-6 sm:px-0">
             <div className="flex justify-center items-center h-64">
               <div className="text-gray-500">
-                {initLoading ? 'Inicializando sistema...' : 'Carregando dashboard...'}
+                Carregando dashboard...
               </div>
             </div>
           </div>
@@ -107,7 +105,7 @@ export default function DashboardPage() {
   }
 
   // Error state
-  if (initError || creditosError) {
+  if (error) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -115,7 +113,7 @@ export default function DashboardPage() {
           <div className="px-4 py-6 sm:px-0">
             <div className="flex justify-center items-center h-64">
               <div className="text-red-500">
-                Erro ao carregar dados: {initError || creditosError}
+                Erro ao carregar dados: {error}
               </div>
             </div>
           </div>

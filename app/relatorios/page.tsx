@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Navbar } from "@/components/layout/navbar";
 import { Card } from "@/components/ui/card";
 import { useCreditos } from "@/hooks/use-creditos";
 import { formatCurrency, calculateTotalSpent } from "@/lib/utils";
@@ -267,8 +268,13 @@ export default function RelatoriosPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
           <p className="text-gray-600">Gere e baixe relatórios do sistema</p>
@@ -440,7 +446,10 @@ export default function RelatoriosPage() {
             </button>
           </div>
         </form>
-      </Card>
+          </Card>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

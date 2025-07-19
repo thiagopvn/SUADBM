@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Navbar } from "@/components/layout/navbar";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { firebaseService } from "@/lib/firebase-service";
@@ -136,9 +137,14 @@ export default function ConfiguracoesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
         <p className="text-gray-600">Gerencie as configurações do sistema</p>
         {message && (
           <div className={`mt-2 p-3 rounded-md text-sm ${
@@ -405,6 +411,9 @@ export default function ConfiguracoesPage() {
           </div>
         </div>
       </Card>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

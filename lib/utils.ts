@@ -29,7 +29,8 @@ export function getStatusColor(status: string): string {
   return colors[status] || 'bg-gray-100 text-gray-800';
 }
 
-export function calculateTotalSpent(despesas: Record<string, Despesa>): number {
+export function calculateTotalSpent(despesas: Record<string, Despesa> | null | undefined): number {
+  if (!despesas) return 0;
   return Object.values(despesas).reduce((total, despesa) => {
     if (despesa.status === 'Pago') {
       return total + (despesa.valorTotal || 0);
@@ -38,7 +39,7 @@ export function calculateTotalSpent(despesas: Record<string, Despesa>): number {
   }, 0);
 }
 
-export function calculateSaldoAtual(valorGlobal: number, despesas: Record<string, Despesa>): number {
+export function calculateSaldoAtual(valorGlobal: number, despesas: Record<string, Despesa> | null | undefined): number {
   const totalSpent = calculateTotalSpent(despesas);
   return valorGlobal - totalSpent;
 }

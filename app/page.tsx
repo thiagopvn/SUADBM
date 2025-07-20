@@ -49,11 +49,18 @@ export default function DashboardPage() {
           .filter(c => !selectedYear || c.anoExercicio === selectedYear)
           .forEach(c => {
             // Distribute credit value equally among all eixos
-            const valuePerEixo = c.valorGlobal / c.eixos.length;
-            c.eixos.forEach(eixo => {
-              const current = acaoMap.get(eixo) || 0;
-              acaoMap.set(eixo, current + valuePerEixo);
-            });
+            const eixos = c.eixos || [];
+            const valuePerEixo = eixos.length > 0 ? c.valorGlobal / eixos.length : c.valorGlobal;
+            if (eixos.length > 0) {
+              eixos.forEach(eixo => {
+                const current = acaoMap.get(eixo) || 0;
+                acaoMap.set(eixo, current + valuePerEixo);
+              });
+            } else {
+              // If no eixos, use a default category
+              const current = acaoMap.get('Sem eixo definido') || 0;
+              acaoMap.set('Sem eixo definido', current + c.valorGlobal);
+            }
           });
         
         const pieData = Array.from(acaoMap.entries()).map(([name, value]) => ({

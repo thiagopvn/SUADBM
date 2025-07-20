@@ -123,8 +123,8 @@ export function TabelaPrestacoes({ prestacoes, onGerenciar }: TabelaPrestacoesPr
               <td className="px-6 py-4 whitespace-nowrap text-sm">
                 <div className="flex items-center gap-1">
                   <Package className="w-4 h-4 text-gray-400" />
-                  <span className={prestacao.despesasVinculadas.length > 0 ? "text-gray-900" : "text-gray-400"}>
-                    {prestacao.despesasVinculadas.length} {prestacao.despesasVinculadas.length === 1 ? 'item' : 'itens'}
+                  <span className={(prestacao.despesasVinculadas || []).length > 0 ? "text-gray-900" : "text-gray-400"}>
+                    {(prestacao.despesasVinculadas || []).length} {(prestacao.despesasVinculadas || []).length === 1 ? 'item' : 'itens'}
                   </span>
                 </div>
               </td>

@@ -220,11 +220,11 @@ export default function RastreamentoPage() {
                             })}
                           </span>
                           <span>
-                            {credito.eixos.length} eixo{credito.eixos.length !== 1 ? 's' : ''}
+                            {(credito.eixos || []).length} eixo{(credito.eixos || []).length !== 1 ? 's' : ''}
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {credito.eixos.map((eixo, index) => (
+                          {(credito.eixos || []).map((eixo, index) => (
                             <span 
                               key={index}
                               className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
@@ -372,7 +372,7 @@ export default function RastreamentoPage() {
                     <div className="mt-3 pt-3 border-t border-gray-100">
                       <p className="text-xs font-medium text-gray-700 mb-1">Crédito de Origem:</p>
                       <div className="flex flex-wrap gap-1">
-                        {item.credito.eixos.map((eixo, eixoIndex) => (
+                        {(item.credito.eixos || []).map((eixo, eixoIndex) => (
                           <span 
                             key={eixoIndex}
                             className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"

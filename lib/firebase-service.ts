@@ -30,7 +30,16 @@ export class FirebaseService {
     try {
       const creditosRef = ref(database, 'creditos');
       const snapshot = await get(creditosRef);
-      return snapshot.exists() ? snapshot.val() : {};
+      const creditos = snapshot.exists() ? snapshot.val() : {};
+      
+      // Ensure all creditos have required properties
+      Object.values(creditos).forEach((credito: any) => {
+        if (credito && !credito.eixos) {
+          credito.eixos = [];
+        }
+      });
+      
+      return creditos;
     } catch (error) {
       throw new FirebaseServiceError('Failed to fetch credits', error);
     }
@@ -61,7 +70,7 @@ export class FirebaseService {
         let valorPago = 0;
         
         Object.values(despesas).forEach(despesa => {
-          despesa.fontesDeRecurso.forEach(fonte => {
+          (despesa.fontesDeRecurso || []).forEach(fonte => {
             if (fonte.creditoId === creditoId) {
               // Considerar empenho se a fonte tem nota de empenho
               if (fonte.notaEmpenho && fonte.dataEmpenho) {
@@ -79,6 +88,7 @@ export class FirebaseService {
         
         creditosArray.push({
           ...credito,
+          eixos: credito.eixos || [],
           valorEmpenhado,
           valorPago,
           saldoDisponivel
@@ -152,7 +162,16 @@ export class FirebaseService {
     try {
       const despesasRef = ref(database, 'despesas');
       const snapshot = await get(despesasRef);
-      return snapshot.exists() ? snapshot.val() : {};
+      const despesas = snapshot.exists() ? snapshot.val() : {};
+      
+      // Ensure all despesas have required properties
+      Object.values(despesas).forEach((despesa: any) => {
+        if (despesa && !despesa.fontesDeRecurso) {
+          despesa.fontesDeRecurso = [];
+        }
+      });
+      
+      return despesas;
     } catch (error) {
       throw new FirebaseServiceError('Failed to fetch expenses', error);
     }
@@ -402,7 +421,12 @@ export class FirebaseService {
       Object.entries(allPrestacoes).forEach(([id, prestacao]) => {
         const pc = prestacao as PrestacaoContas;
         if (pc.creditoId === creditoId) {
-          creditoPrestacoes.push({ ...pc, id });
+          // Ensure despesasVinculadas is always an array
+          creditoPrestacoes.push({ 
+            ...pc, 
+            id,
+            despesasVinculadas: pc.despesasVinculadas || []
+          });
         }
       });
       

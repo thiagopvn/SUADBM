@@ -18,6 +18,9 @@ npm run start        # Start production server
 
 # Code Quality
 npm run lint         # Run ESLint
+
+# Data Import (development only)
+node scripts/importData.js  # Import mock data to Firebase (requires admin SDK)
 ```
 
 ## Architecture Overview
@@ -31,9 +34,10 @@ npm run lint         # Run ESLint
 
 ### Data Flow Pattern
 1. Firebase Realtime Database stores all data
-2. Custom hooks (`/hooks`) handle Firebase subscriptions and state
-3. Components consume data via hooks
-4. All mutations go through firebase-service.ts
+2. FirebaseService singleton handles all database operations
+3. Custom hooks (`/hooks`) manage Firebase subscriptions and state
+4. Components consume data via hooks
+5. All mutations go through firebase-service.ts
 
 ### Key Architectural Decisions
 
@@ -41,10 +45,11 @@ npm run lint         # Run ESLint
 
 2. **Type Safety**: All data models are defined in `/types/index.ts`. Always use these types when working with:
    - Credito (budget credits)
-   - Despesa (expenses)
-   - PrestacaoContas (account reports)
+   - Despesa (expenses) - Now independent entities with multiple funding sources
+   - PrestacaoContas (account reports) - Auto-generated with 4-month cycles
    - MetaAcao (goals/actions)
    - FechamentoAnual (annual closures)
+   - FonteDeRecurso (funding sources) - Links expenses to credits
 
 3. **Component Structure**:
    - `/components/ui/` - Base UI components (Card, Badge, etc.)
@@ -55,6 +60,7 @@ npm run lint         # Run ESLint
 
 4. **Routing**: File-based routing in `/app` directory:
    - `/` - Dashboard with overview metrics
+   - `/creditos` - Credits listing page
    - `/creditos/[id]` - Credit detail pages
    - `/relatorios` - Reports page
    - `/configuracoes` - Settings page
@@ -68,28 +74,39 @@ npm run lint         # Run ESLint
       creditoCodigo: string,
       valorGlobal: number,
       anoExercicio: number,
+      origem: 'Ano vigente' | 'Anos anteriores',
       dataLancamento: string,
-      despesas: {
-        [despesaId]: {
-          processoSEI: string,
-          objeto: string,
-          valorTotal: number,
-          status: string,
-          metaAssociada: string,
-          acaoAssociada: string
-          // ... other fields
+      // No longer contains nested despesas
+    }
+  },
+  despesas: {
+    [despesaId]: {
+      processoSEI: string,
+      objeto: string,
+      valorTotal: number,
+      status: 'Planejado' | 'Empenhado' | 'Liquidado' | 'Pago',
+      fontesDeRecurso: [
+        {
+          creditoId: string,
+          valor: number
         }
-      }
+      ],
+      metaAssociada: string,
+      acaoAssociada: string,
+      // ... other fields
     }
   },
   prestacoesContas: {
     [prestacaoId]: {
       creditoId: string,
       ano: number,
+      numeroObrigacao: number,
       periodoLabel: string,
       prazoFinal: string,
       status: 'Pendente' | 'Em Atraso' | 'Entregue',
-      despesasVinculadas: string[]
+      despesasVinculadas: string[],
+      processoSEI?: string,
+      dataEntrega?: string
     }
   },
   metasAcoes: {
@@ -105,6 +122,24 @@ npm run lint         # Run ESLint
 }
 ```
 
+### Critical Implementation Details
+
+1. **Expense-Credit Relationship**:
+   - Expenses can be funded by multiple credits through `fontesDeRecurso`
+   - Balance validation happens across all linked credits
+   - Dynamic calculation of available balance per credit
+
+2. **Prestação de Contas Lifecycle**:
+   - First obligation auto-generated on credit creation
+   - New obligations created when previous is marked as delivered
+   - 4-month reporting cycles
+   - Automatic late status based on current date
+
+3. **Financial Calculations**:
+   - `CreditoWithCalculations` includes computed fields (valorUtilizado, valorDisponivel)
+   - `DespesaWithCreditos` includes full credit objects for display
+   - Dashboard aggregates values across all entities
+
 ### Development Guidelines
 
 1. **Adding New Features**:
@@ -115,14 +150,20 @@ npm run lint         # Run ESLint
 
 2. **Working with Forms**:
    - Use existing form components from `/components/forms/`
-   - Always validate data before Firebase operations
+   - Validate balances before expense operations
    - Handle loading and error states
+   - Support multi-source funding in expense forms
 
 3. **Styling**:
    - Use Tailwind classes exclusively
    - Follow existing color scheme (primary colors defined in tailwind.config.ts)
-   - Use CSS variables for dynamic theming
+   - Main container uses full width with 2rem padding
 
 4. **Path Imports**:
    - Use `@/` alias for imports from root
    - Example: `import { Credito } from '@/types'`
+
+5. **Error Handling**:
+   - Use FirebaseServiceError for service-level errors
+   - Display user-friendly error messages
+   - Handle loading states in all async operations

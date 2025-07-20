@@ -54,6 +54,12 @@
       "namedRegex": "^/creditos(?:/)?$"
     },
     {
+      "page": "/rastreamento",
+      "regex": "^/rastreamento(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/rastreamento(?:/)?$"
+    },
+    {
       "page": "/relatorios",
       "regex": "^/relatorios(?:/)?$",
       "routeKeys": {},

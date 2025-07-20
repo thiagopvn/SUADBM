@@ -10,7 +10,7 @@ export const mockData: MockData = {
       acaoEixo: "VALORIZAÇÃO DOS PROFISSIONAIS DE SEGURANÇA PÚBLICA",
       natureza: "I-449000",
       dataLancamento: "2019-01-01",
-      origem: { tipo: 'Original', descricao: 'Crédito original do ano de 2019' }
+      origem: { tipo: 'Ano vigente', descricao: 'Crédito original do ano de 2019' }
     },
     "DC00006_2020": {
       id: "DC00006_2020",
@@ -20,7 +20,7 @@ export const mockData: MockData = {
       acaoEixo: "MODERNIZAÇÃO DAS UNIDADES OPERACIONAIS",
       natureza: "I-339030",
       dataLancamento: "2020-01-01",
-      origem: { tipo: 'Original', descricao: 'Crédito original do ano de 2020' }
+      origem: { tipo: 'Ano vigente', descricao: 'Crédito original do ano de 2020' }
     },
     "DC00007_2021": {
       id: "DC00007_2021",
@@ -30,7 +30,7 @@ export const mockData: MockData = {
       acaoEixo: "VALORIZAÇÃO DOS PROFISSIONAIS DE SEGURANÇA PÚBLICA",
       natureza: "I-449052",
       dataLancamento: "2021-01-01",
-      origem: { tipo: 'Original', descricao: 'Crédito original do ano de 2021' }
+      origem: { tipo: 'Ano vigente', descricao: 'Crédito original do ano de 2021' }
     }
   },
   despesas: {

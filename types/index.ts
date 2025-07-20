@@ -8,8 +8,8 @@ export interface FonteDeRecurso {
 
 // Tipo para rastreabilidade de origem dos créditos
 export type OrigemCredito = 
-  | { tipo: 'Original'; descricao: string }
-  | { tipo: 'Restos'; creditosAnteriores: string[]; };
+  | { tipo: 'Ano vigente'; descricao: string }
+  | { tipo: 'Anos anteriores'; creditosAnteriores: string[]; };
 
 // Interface Despesa reformulada
 export interface Despesa {

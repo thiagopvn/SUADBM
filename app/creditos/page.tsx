@@ -190,8 +190,8 @@ export default function CreditosPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        <Badge variant={credito.origem?.tipo === 'Original' ? 'default' : 'secondary'}>
-                          {credito.origem?.tipo === 'Original' ? 'Ano vigente' : 'Restos'}
+                        <Badge variant={credito.origem?.tipo === 'Ano vigente' ? 'default' : 'secondary'}>
+                          {credito.origem?.tipo === 'Ano vigente' ? 'Ano vigente' : 'Anos anteriores'}
                         </Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

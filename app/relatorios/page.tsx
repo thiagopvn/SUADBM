@@ -140,7 +140,7 @@ export default function RelatoriosPage() {
       'Código do Crédito': credito.creditoCodigo,
       'Ano': credito.anoExercicio,
       'Ação/Eixo': credito.acaoEixo,
-      'Origem': credito.origem?.tipo === 'Original' ? 'Ano vigente' : 'Restos',
+      'Origem': credito.origem?.tipo === 'Ano vigente' ? 'Ano vigente' : 'Anos anteriores',
       'Valor Global': formatCurrency(credito.valorGlobal),
       'Valor Empenhado': formatCurrency(credito.valorEmpenhado),
       'Valor Pago': formatCurrency(credito.valorPago),
@@ -322,7 +322,7 @@ export default function RelatoriosPage() {
                     <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
                       <option>Todas</option>
                       <option>Ano vigente</option>
-                      <option>Restos</option>
+                      <option>Anos anteriores</option>
                     </select>
                   </div>
                   <div>

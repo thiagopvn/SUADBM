@@ -9,7 +9,7 @@ interface CreditoFormProps {
   onCancel: () => void;
   initialData?: Partial<Credito>;
   isEditing?: boolean;
-  creditosAnteriores?: Credito[]; // Para selecionar quando origem for "Restos"
+  creditosAnteriores?: Credito[]; // Para selecionar quando origem for "Anos anteriores"
 }
 
 export function CreditoForm({ 
@@ -29,16 +29,16 @@ export function CreditoForm({
   });
 
   // Gerenciar origem do crédito
-  const [tipoOrigemSelecionado, setTipoOrigemSelecionado] = useState<'Original' | 'Restos'>(
-    initialData?.origem?.tipo || 'Original'
+  const [tipoOrigemSelecionado, setTipoOrigemSelecionado] = useState<'Ano vigente' | 'Anos anteriores'>(
+    initialData?.origem?.tipo || 'Ano vigente'
   );
   
   const [origemOriginal, setOrigemOriginal] = useState<string>(
-    initialData?.origem?.tipo === 'Original' ? initialData.origem.descricao : 'Descentralização de crédito original para o ano vigente vindo de Brasília'
+    initialData?.origem?.tipo === 'Ano vigente' ? initialData.origem.descricao : 'Descentralização de crédito original para o ano vigente vindo de Brasília'
   );
   
   const [creditosAnterioresSelecionados, setCreditosAnterioresSelecionados] = useState<string[]>(
-    initialData?.origem?.tipo === 'Restos' ? initialData.origem.creditosAnteriores : []
+    initialData?.origem?.tipo === 'Anos anteriores' ? initialData.origem.creditosAnteriores : []
   );
 
   const [loading, setLoading] = useState(false);
@@ -98,11 +98,11 @@ export function CreditoForm({
     }
 
     // Validar origem
-    if (tipoOrigemSelecionado === 'Original') {
+    if (tipoOrigemSelecionado === 'Ano vigente') {
       if (!origemOriginal.trim()) {
         newErrors.origemOriginal = 'Descrição da origem é obrigatória';
       }
-    } else if (tipoOrigemSelecionado === 'Restos') {
+    } else if (tipoOrigemSelecionado === 'Anos anteriores') {
       if (creditosAnterioresSelecionados.length === 0 || 
           creditosAnterioresSelecionados.some(id => !id.trim())) {
         newErrors.creditosAnteriores = 'Selecione pelo menos um crédito anterior válido';
@@ -124,9 +124,9 @@ export function CreditoForm({
       setLoading(true);
       
       // Construir objeto origem
-      const origem: OrigemCredito = tipoOrigemSelecionado === 'Original' 
-        ? { tipo: 'Original', descricao: origemOriginal }
-        : { tipo: 'Restos', creditosAnteriores: creditosAnterioresSelecionados.filter(id => id.trim()) };
+      const origem: OrigemCredito = tipoOrigemSelecionado === 'Ano vigente' 
+        ? { tipo: 'Ano vigente', descricao: origemOriginal }
+        : { tipo: 'Anos anteriores', creditosAnteriores: creditosAnterioresSelecionados.filter(id => id.trim()) };
 
       const creditoData: Omit<Credito, 'id'> = {
         ...formData,
@@ -301,27 +301,27 @@ export function CreditoForm({
                 <label className="flex items-center">
                   <input
                     type="radio"
-                    value="Original"
-                    checked={tipoOrigemSelecionado === 'Original'}
-                    onChange={(e) => setTipoOrigemSelecionado(e.target.value as 'Original')}
+                    value="Ano vigente"
+                    checked={tipoOrigemSelecionado === 'Ano vigente'}
+                    onChange={(e) => setTipoOrigemSelecionado(e.target.value as 'Ano vigente')}
                     className="mr-2"
                   />
-                  Ano vigente (Original)
+                  Ano vigente
                 </label>
                 <label className="flex items-center">
                   <input
                     type="radio"
-                    value="Restos"
-                    checked={tipoOrigemSelecionado === 'Restos'}
-                    onChange={(e) => setTipoOrigemSelecionado(e.target.value as 'Restos')}
+                    value="Anos anteriores"
+                    checked={tipoOrigemSelecionado === 'Anos anteriores'}
+                    onChange={(e) => setTipoOrigemSelecionado(e.target.value as 'Anos anteriores')}
                     className="mr-2"
                   />
-                  Anos anteriores (Restos)
+                  Anos anteriores
                 </label>
               </div>
             </div>
 
-            {tipoOrigemSelecionado === 'Original' && (
+            {tipoOrigemSelecionado === 'Ano vigente' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Descrição da Origem *
@@ -341,7 +341,7 @@ export function CreditoForm({
               </div>
             )}
 
-            {tipoOrigemSelecionado === 'Restos' && (
+            {tipoOrigemSelecionado === 'Anos anteriores' && (
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <label className="block text-sm font-medium text-gray-700">

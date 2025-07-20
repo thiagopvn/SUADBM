@@ -30,7 +30,7 @@ export default function CreditosPage() {
     if (searchTerm) {
       filtered = filtered.filter(credito => 
         credito.creditoCodigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        credito.eixos.some(eixo => eixo.toLowerCase().includes(searchTerm.toLowerCase()))
+        (credito.eixos && credito.eixos.some(eixo => eixo.toLowerCase().includes(searchTerm.toLowerCase())))
       );
     }
 
@@ -186,7 +186,7 @@ export default function CreditosPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         <div className="flex flex-wrap gap-1">
-                          {credito.eixos.map((eixo, index) => (
+                          {(credito.eixos || []).map((eixo, index) => (
                             <span 
                               key={index}
                               className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"

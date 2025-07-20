@@ -199,7 +199,7 @@ export default function CreditoDetalhesPage() {
                   {credito.creditoCodigo}
                 </h1>
                 <div className="flex flex-wrap gap-1 mb-4">
-                  {credito.eixos.map((eixo, index) => (
+                  {(credito.eixos || []).map((eixo, index) => (
                     <span 
                       key={index}
                       className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"

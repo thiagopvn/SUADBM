@@ -23,10 +23,14 @@ export function CreditoForm({
     creditoCodigo: initialData?.creditoCodigo || '',
     anoExercicio: initialData?.anoExercicio || new Date().getFullYear(),
     valorGlobal: initialData?.valorGlobal || 0,
-    acaoEixo: initialData?.acaoEixo || '',
     natureza: initialData?.natureza || '',
     dataLancamento: initialData?.dataLancamento || new Date().toISOString().split('T')[0],
   });
+
+  // Gerenciar múltiplos eixos
+  const [eixosSelecionados, setEixosSelecionados] = useState<string[]>(
+    initialData?.eixos || []
+  );
 
   // Gerenciar origem do crédito
   const [tipoOrigemSelecionado, setTipoOrigemSelecionado] = useState<'Ano vigente' | 'Anos anteriores'>(
@@ -85,8 +89,8 @@ export function CreditoForm({
       newErrors.valorGlobal = 'Valor global deve ser maior que zero';
     }
 
-    if (!formData.acaoEixo.trim()) {
-      newErrors.acaoEixo = 'Ação/Eixo é obrigatório';
+    if (eixosSelecionados.length === 0) {
+      newErrors.eixos = 'Selecione pelo menos um eixo';
     }
 
     if (!formData.natureza.trim()) {
@@ -130,6 +134,7 @@ export function CreditoForm({
 
       const creditoData: Omit<Credito, 'id'> = {
         ...formData,
+        eixos: eixosSelecionados,
         origem,
         dataLancamento: formData.dataLancamento,
       };
@@ -249,24 +254,56 @@ export function CreditoForm({
 
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Ação/Eixo *
+                Eixos *
               </label>
-              <select
-                value={formData.acaoEixo}
-                onChange={(e) => handleInputChange('acaoEixo', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.acaoEixo ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Selecione um eixo</option>
+              <div className="space-y-2">
                 {eixosDisponiveis.map(eixo => (
-                  <option key={eixo} value={eixo}>
-                    {eixo}
-                  </option>
+                  <label key={eixo} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={eixosSelecionados.includes(eixo)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setEixosSelecionados([...eixosSelecionados, eixo]);
+                        } else {
+                          setEixosSelecionados(eixosSelecionados.filter(e => e !== eixo));
+                        }
+                        if (errors.eixos) {
+                          setErrors(prev => ({ ...prev, eixos: '' }));
+                        }
+                      }}
+                      className="mr-3 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{eixo}</span>
+                  </label>
                 ))}
-              </select>
-              {errors.acaoEixo && (
-                <p className="text-red-500 text-sm mt-1">{errors.acaoEixo}</p>
+              </div>
+              {errors.eixos && (
+                <p className="text-red-500 text-sm mt-1">{errors.eixos}</p>
+              )}
+              {eixosSelecionados.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-600">Eixos selecionados:</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {eixosSelecionados.map(eixo => (
+                      <span 
+                        key={eixo} 
+                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                      >
+                        {eixo.split('(')[0].trim()}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEixosSelecionados(eixosSelecionados.filter(e => e !== eixo));
+                          }}
+                          className="ml-1 text-blue-600 hover:text-blue-800"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 

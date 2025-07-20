@@ -23,10 +23,6 @@ export function DespesaForm({
     processoSEI: initialData?.processoSEI || '',
     objeto: initialData?.objeto || '',
     status: initialData?.status || 'Planejado' as const,
-    dataEmpenho: initialData?.dataEmpenho || '',
-    notaEmpenho: initialData?.notaEmpenho || '',
-    dataPagamento: initialData?.dataPagamento || '',
-    ordemBancaria: initialData?.ordemBancaria || '',
     dataPrestacaoContas: initialData?.dataPrestacaoContas || '',
     prestacaoContasInfo: initialData?.prestacaoContasInfo || '',
     metaAssociada: initialData?.metaAssociada || '',
@@ -34,7 +30,15 @@ export function DespesaForm({
   });
 
   const [fontesDeRecurso, setFontesDeRecurso] = useState<FonteDeRecurso[]>(
-    initialData?.fontesDeRecurso || [{ creditoId: '', valorUtilizado: 0 }]
+    initialData?.fontesDeRecurso || [{ 
+      id: '', 
+      creditoId: '', 
+      valorUtilizado: 0,
+      notaEmpenho: '',
+      dataEmpenho: '',
+      ordemBancaria: '',
+      dataPagamento: ''
+    }]
   );
 
   const [loading, setLoading] = useState(false);
@@ -52,7 +56,15 @@ export function DespesaForm({
   const valorTotal = fontesDeRecurso.reduce((total, fonte) => total + fonte.valorUtilizado, 0);
 
   const adicionarFonteDeRecurso = () => {
-    setFontesDeRecurso([...fontesDeRecurso, { creditoId: '', valorUtilizado: 0 }]);
+    setFontesDeRecurso([...fontesDeRecurso, { 
+      id: '', 
+      creditoId: '', 
+      valorUtilizado: 0,
+      notaEmpenho: '',
+      dataEmpenho: '',
+      ordemBancaria: '',
+      dataPagamento: ''
+    }]);
   };
 
   const removerFonteDeRecurso = (index: number) => {
@@ -63,11 +75,10 @@ export function DespesaForm({
 
   const atualizarFonteDeRecurso = (index: number, campo: keyof FonteDeRecurso, valor: string | number) => {
     const novasFontes = [...fontesDeRecurso];
-    if (campo === 'creditoId') {
-      novasFontes[index].creditoId = valor as string;
-    } else if (campo === 'valorUtilizado') {
-      novasFontes[index].valorUtilizado = typeof valor === 'number' ? valor : parseFloat(valor as string) || 0;
-    }
+    novasFontes[index] = {
+      ...novasFontes[index],
+      [campo]: valor
+    };
     setFontesDeRecurso(novasFontes);
   };
 
@@ -113,29 +124,29 @@ export function DespesaForm({
       if (fonte.creditoId && fonte.valorUtilizado > obterSaldoDisponivel(fonte.creditoId)) {
         newErrors[`fonte_${index}_valor`] = 'Valor excede o saldo disponível';
       }
+
+      // Validar campos de transação baseado no status
+      if (formData.status !== 'Planejado') {
+        if (!fonte.notaEmpenho?.trim()) {
+          newErrors[`fonte_${index}_empenho`] = 'Nota de empenho é obrigatória';
+        }
+        if (!fonte.dataEmpenho) {
+          newErrors[`fonte_${index}_dataEmpenho`] = 'Data de empenho é obrigatória';
+        }
+      }
+
+      if (formData.status === 'Pago') {
+        if (!fonte.ordemBancaria?.trim()) {
+          newErrors[`fonte_${index}_ob`] = 'Ordem bancária é obrigatória';
+        }
+        if (!fonte.dataPagamento) {
+          newErrors[`fonte_${index}_dataPagamento`] = 'Data de pagamento é obrigatória';
+        }
+      }
     });
 
     if (valorTotal <= 0) {
       newErrors.valorTotal = 'O valor total da despesa deve ser maior que zero';
-    }
-
-    // Validation based on status
-    if (formData.status !== 'Planejado') {
-      if (!formData.dataEmpenho) {
-        newErrors.dataEmpenho = 'Data de empenho é obrigatória para status diferente de Planejado';
-      }
-      if (!formData.notaEmpenho.trim()) {
-        newErrors.notaEmpenho = 'Nota de empenho é obrigatória para status diferente de Planejado';
-      }
-    }
-
-    if (formData.status === 'Pago') {
-      if (!formData.dataPagamento) {
-        newErrors.dataPagamento = 'Data de pagamento é obrigatória para status Pago';
-      }
-      if (!formData.ordemBancaria.trim()) {
-        newErrors.ordemBancaria = 'Ordem bancária é obrigatória para status Pago';
-      }
     }
 
     setErrors(newErrors);
@@ -155,10 +166,6 @@ export function DespesaForm({
         ...formData,
         fontesDeRecurso: fontesDeRecurso.filter(fonte => fonte.creditoId && fonte.valorUtilizado > 0),
         valorTotal,
-        dataEmpenho: formData.dataEmpenho || null,
-        notaEmpenho: formData.notaEmpenho || null,
-        dataPagamento: formData.dataPagamento || null,
-        ordemBancaria: formData.ordemBancaria || null,
         dataPrestacaoContas: formData.dataPrestacaoContas || null,
         prestacaoContasInfo: formData.prestacaoContasInfo || null,
       };
@@ -269,7 +276,7 @@ export function DespesaForm({
 
             <div className="space-y-4">
               {fontesDeRecurso.map((fonte, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4">
+                <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="text-sm font-medium text-gray-700">Fonte {index + 1}</h4>
                     {fontesDeRecurso.length > 1 && (
@@ -283,7 +290,8 @@ export function DespesaForm({
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Primeira linha: Crédito e Valor */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Crédito *
@@ -338,6 +346,86 @@ export function DespesaForm({
                       )}
                     </div>
                   </div>
+
+                  {/* Segunda linha: Empenho (se status não for Planejado) */}
+                  {formData.status !== 'Planejado' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Nota de Empenho *
+                        </label>
+                        <input
+                          type="text"
+                          value={fonte.notaEmpenho || ''}
+                          onChange={(e) => atualizarFonteDeRecurso(index, 'notaEmpenho', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            errors[`fonte_${index}_empenho`] ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                          placeholder="Ex: 2024NE00123"
+                        />
+                        {errors[`fonte_${index}_empenho`] && (
+                          <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_empenho`]}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Data de Empenho *
+                        </label>
+                        <input
+                          type="date"
+                          value={fonte.dataEmpenho || ''}
+                          onChange={(e) => atualizarFonteDeRecurso(index, 'dataEmpenho', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            errors[`fonte_${index}_dataEmpenho`] ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                        />
+                        {errors[`fonte_${index}_dataEmpenho`] && (
+                          <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_dataEmpenho`]}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Terceira linha: Pagamento (se status for Pago) */}
+                  {formData.status === 'Pago' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Ordem Bancária *
+                        </label>
+                        <input
+                          type="text"
+                          value={fonte.ordemBancaria || ''}
+                          onChange={(e) => atualizarFonteDeRecurso(index, 'ordemBancaria', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            errors[`fonte_${index}_ob`] ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                          placeholder="Ex: 2024OB45678"
+                        />
+                        {errors[`fonte_${index}_ob`] && (
+                          <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_ob`]}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Data de Pagamento *
+                        </label>
+                        <input
+                          type="date"
+                          value={fonte.dataPagamento || ''}
+                          onChange={(e) => atualizarFonteDeRecurso(index, 'dataPagamento', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            errors[`fonte_${index}_dataPagamento`] ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                        />
+                        {errors[`fonte_${index}_dataPagamento`] && (
+                          <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_dataPagamento`]}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -358,91 +446,6 @@ export function DespesaForm({
               )}
             </div>
           </div>
-
-          {/* Seção Informações Complementares */}
-          {formData.status !== 'Planejado' && (
-            <div className="border-b pb-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Informações de Empenho</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Data de Empenho *
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.dataEmpenho}
-                    onChange={(e) => handleInputChange('dataEmpenho', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.dataEmpenho ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.dataEmpenho && (
-                    <p className="text-red-500 text-sm mt-1">{errors.dataEmpenho}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nota de Empenho *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.notaEmpenho}
-                    onChange={(e) => handleInputChange('notaEmpenho', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.notaEmpenho ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Ex: 2024NE00123"
-                  />
-                  {errors.notaEmpenho && (
-                    <p className="text-red-500 text-sm mt-1">{errors.notaEmpenho}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {formData.status === 'Pago' && (
-            <div className="border-b pb-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Informações de Pagamento</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Data de Pagamento *
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.dataPagamento}
-                    onChange={(e) => handleInputChange('dataPagamento', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.dataPagamento ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.dataPagamento && (
-                    <p className="text-red-500 text-sm mt-1">{errors.dataPagamento}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ordem Bancária *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.ordemBancaria}
-                    onChange={(e) => handleInputChange('ordemBancaria', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.ordemBancaria ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Ex: 2024OB45678"
-                  />
-                  {errors.ordemBancaria && (
-                    <p className="text-red-500 text-sm mt-1">{errors.ordemBancaria}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Outras Informações */}
           <div>

@@ -198,7 +198,16 @@ export default function CreditoDetalhesPage() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
                   {credito.creditoCodigo}
                 </h1>
-                <p className="text-gray-600 mb-4">{credito.acaoEixo}</p>
+                <div className="flex flex-wrap gap-1 mb-4">
+                  {credito.eixos.map((eixo, index) => (
+                    <span 
+                      key={index}
+                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                    >
+                      {eixo.split('(')[0].trim()}
+                    </span>
+                  ))}
+                </div>
                 <div className="flex gap-4 text-sm text-gray-500">
                   <span>Ano: {credito.anoExercicio}</span>
                   <span>•</span>
@@ -319,113 +328,131 @@ export default function CreditoDetalhesPage() {
                     </div>
                   </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Processo SEI
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Objeto
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Valor Total
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Nota de Empenho
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Ordem Bancária
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Prest. Contas
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Ações
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredDespesas.map((despesa) => (
-                          <tr key={despesa.id}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <Badge className={getStatusColor(despesa.status)}>
-                                {despesa.status}
-                              </Badge>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {despesa.processoSEI}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900">
-                              <div className="max-w-xs truncate" title={despesa.objeto}>
-                                {despesa.objeto}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              <div className="flex items-center gap-2">
-                                {formatCurrency(despesa.valorTotal)}
-                                {renderMultipleCreditIndicator(despesa)}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {despesa.notaEmpenho ? (
-                                <div className="flex items-center gap-1">
-                                  <FileText className="w-3 h-3 text-gray-400" />
-                                  {despesa.notaEmpenho}
-                                </div>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {despesa.ordemBancaria ? (
-                                <div className="flex items-center gap-1">
-                                  <CreditCard className="w-3 h-3 text-gray-400" />
-                                  {despesa.ordemBancaria}
-                                </div>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {despesa.dataPrestacaoContas ? (
-                                <span className="text-green-600">✓ {formatDate(despesa.dataPrestacaoContas)}</span>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <div className="flex gap-2">
-                                <button 
-                                  onClick={() => setEditingDespesa(despesa)}
-                                  className="text-indigo-600 hover:text-indigo-900"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteDespesa(despesa.id)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    
-                    {filteredDespesas.length === 0 && (
+                  <div className="space-y-4">
+                    {filteredDespesas.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
                         {despesasDoCredito.length === 0 
                           ? "Nenhuma despesa encontrada. Adicione a primeira despesa!"
                           : "Nenhuma despesa corresponde aos filtros aplicados."
                         }
                       </div>
+                    ) : (
+                      filteredDespesas.map((despesa) => {
+                        // Encontrar a participação deste crédito nesta despesa
+                        const participacao = despesa.fontesDeRecurso.find(fonte => fonte.creditoId === creditoId);
+                        
+                        return (
+                          <div key={despesa.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge className={getStatusColor(despesa.status)}>
+                                    {despesa.status}
+                                  </Badge>
+                                  {despesa.fontesDeRecurso.length > 1 && (
+                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                      {despesa.fontesDeRecurso.length} fontes de financiamento
+                                    </span>
+                                  )}
+                                </div>
+                                <h3 className="font-medium text-gray-900 mb-1">
+                                  {despesa.objeto}
+                                </h3>
+                                <p className="text-sm text-gray-600 mb-2">
+                                  SEI: {despesa.processoSEI}
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={() => setEditingDespesa(despesa)}
+                                  className="text-indigo-600 hover:text-indigo-900 p-1"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteDespesa(despesa.id)}
+                                  className="text-red-600 hover:text-red-900 p-1"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Participação do Crédito */}
+                            <div className="bg-blue-50 rounded-lg p-3 mb-3">
+                              <h4 className="text-sm font-medium text-blue-900 mb-2">
+                                Participação deste Crédito
+                              </h4>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                  <p className="text-xs text-blue-700">Valor Financiado:</p>
+                                  <p className="font-semibold text-blue-900">
+                                    {formatCurrency(participacao?.valorUtilizado || 0)}
+                                  </p>
+                                  <p className="text-xs text-blue-600">
+                                    de {formatCurrency(despesa.valorTotal)} total
+                                    ({((participacao?.valorUtilizado || 0) / despesa.valorTotal * 100).toFixed(1)}%)
+                                  </p>
+                                </div>
+                                
+                                {participacao?.notaEmpenho && (
+                                  <div>
+                                    <p className="text-xs text-blue-700">Nota de Empenho:</p>
+                                    <p className="font-semibold text-blue-900">
+                                      {participacao.notaEmpenho}
+                                    </p>
+                                    {participacao.dataEmpenho && (
+                                      <p className="text-xs text-blue-600">
+                                        {new Date(participacao.dataEmpenho).toLocaleDateString('pt-BR')}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {participacao?.ordemBancaria && (
+                                  <div>
+                                    <p className="text-xs text-blue-700">Ordem Bancária:</p>
+                                    <p className="font-semibold text-blue-900">
+                                      {participacao.ordemBancaria}
+                                    </p>
+                                    {participacao.dataPagamento && (
+                                      <p className="text-xs text-blue-600">
+                                        {new Date(participacao.dataPagamento).toLocaleDateString('pt-BR')}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Outras Fontes de Financiamento */}
+                            {despesa.fontesDeRecurso.length > 1 && (
+                              <div className="bg-gray-100 rounded-lg p-3">
+                                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                  Outras Fontes de Financiamento
+                                </h4>
+                                <div className="space-y-2">
+                                  {despesa.fontesDeRecurso
+                                    .filter(fonte => fonte.creditoId !== creditoId)
+                                    .map((fonte, index) => {
+                                      const creditoFonte = despesa.creditosAssociados.find(c => c.creditoId === fonte.creditoId);
+                                      return (
+                                        <div key={index} className="flex justify-between items-center text-sm">
+                                          <span className="text-gray-600">
+                                            {creditoFonte?.creditoCodigo || 'Crédito desconhecido'}
+                                          </span>
+                                          <span className="font-medium text-gray-900">
+                                            {formatCurrency(fonte.valorUtilizado)}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 </CardContent>

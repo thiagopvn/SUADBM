@@ -48,8 +48,12 @@ export default function DashboardPage() {
         creditosWithCalculations
           .filter(c => !selectedYear || c.anoExercicio === selectedYear)
           .forEach(c => {
-            const current = acaoMap.get(c.acaoEixo) || 0;
-            acaoMap.set(c.acaoEixo, current + c.valorGlobal);
+            // Distribute credit value equally among all eixos
+            const valuePerEixo = c.valorGlobal / c.eixos.length;
+            c.eixos.forEach(eixo => {
+              const current = acaoMap.get(eixo) || 0;
+              acaoMap.set(eixo, current + valuePerEixo);
+            });
           });
         
         const pieData = Array.from(acaoMap.entries()).map(([name, value]) => ({
@@ -63,9 +67,16 @@ export default function DashboardPage() {
             creditosWithCalculations.find(credito => credito.id === c.creditoId)?.anoExercicio === selectedYear
           ))
           .sort((a, b) => {
-            const dateA = a.dataPagamento || a.dataEmpenho || '1900-01-01';
-            const dateB = b.dataPagamento || b.dataEmpenho || '1900-01-01';
-            return new Date(dateB).getTime() - new Date(dateA).getTime();
+            // Get latest transaction date from any funding source
+            const getLatestDate = (despesa: typeof a) => {
+              const dates = despesa.fontesDeRecurso.flatMap(fonte => [
+                fonte.dataPagamento,
+                fonte.dataEmpenho
+              ]).filter((date): date is string => Boolean(date));
+              return dates.length > 0 ? Math.max(...dates.map(d => new Date(d).getTime())) : 0;
+            };
+            
+            return getLatestDate(b) - getLatestDate(a);
           })
           .slice(0, 5);
         
@@ -206,7 +217,18 @@ export default function DashboardPage() {
                     <div className="text-right">
                       <p className="font-semibold">{formatCurrency(despesa.valorTotal)}</p>
                       <p className="text-sm text-gray-500">
-                        {formatDate(despesa.dataPagamento || despesa.dataEmpenho)}
+                        {(() => {
+                          const dates = despesa.fontesDeRecurso.flatMap(fonte => [
+                            fonte.dataPagamento,
+                            fonte.dataEmpenho
+                          ]).filter((date): date is string => Boolean(date));
+                          const latestDate = dates.length > 0 
+                            ? dates.reduce((latest, current) => 
+                                new Date(current) > new Date(latest) ? current : latest
+                              )
+                            : null;
+                          return latestDate ? formatDate(latestDate) : 'Sem data';
+                        })()}
                       </p>
                     </div>
                   </div>

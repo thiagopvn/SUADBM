@@ -1,9 +1,14 @@
 // Tipos principais do sistema SICOF
 
-// Nova estrutura para fontes de recurso
+// Nova estrutura para fontes de recurso - agora com dados de transação
 export interface FonteDeRecurso {
+  id: string; // ID único para cada fonte
   creditoId: string;
   valorUtilizado: number;
+  notaEmpenho?: string;
+  dataEmpenho?: string;
+  ordemBancaria?: string;
+  dataPagamento?: string;
 }
 
 // Tipo para rastreabilidade de origem dos créditos
@@ -11,30 +16,27 @@ export type OrigemCredito =
   | { tipo: 'Ano vigente'; descricao: string }
   | { tipo: 'Anos anteriores'; creditosAnteriores: string[]; };
 
-// Interface Despesa reformulada
+// Interface Despesa reformulada - container para fontes de recurso
 export interface Despesa {
   id: string;
   objeto: string;
   processoSEI: string;
   status: 'Planejado' | 'Empenhado' | 'Liquidado' | 'Pago' | 'Cancelado';
-  fontesDeRecurso: FonteDeRecurso[]; // MUDANÇA CENTRAL
-  valorTotal: number; // Calculado como soma dos valores das fontesDeRecurso
-  dataEmpenho: string | null;
-  notaEmpenho: string | null;
-  dataPagamento: string | null;
-  ordemBancaria: string | null;
+  fontesDeRecurso: FonteDeRecurso[]; // Array de objetos FonteDeRecurso com transações individuais
+  valorTotal: number; // Calculado pela soma de valorUtilizado das fontes
+  // Removidos campos de transação que agora estão em FonteDeRecurso
   dataPrestacaoContas: string | null;
   prestacaoContasInfo: string | null;
   metaAssociada: string;
   acaoAssociada: string;
 }
 
-// Interface Credito reformulada
+// Interface Credito reformulada - com suporte a múltiplos eixos
 export interface Credito {
   id: string;
   creditoCodigo: string;
   anoExercicio: number;
-  acaoEixo: string;
+  eixos: string[]; // NOVO CAMPO: Array de strings para múltiplos eixos (VPS, ECV, etc.)
   valorGlobal: number;
   origem: OrigemCredito; // NOVO CAMPO DE RASTREABILIDADE
   natureza: string;

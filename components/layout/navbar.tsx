@@ -9,12 +9,14 @@ import {
   DollarSign, 
   BarChart3,
   Settings,
-  LogOut 
+  LogOut,
+  Search
 } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/creditos", label: "Créditos", icon: DollarSign },
+  { href: "/rastreamento", label: "Rastreamento", icon: Search },
   { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];

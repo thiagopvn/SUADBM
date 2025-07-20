@@ -63,10 +63,12 @@ export class FirebaseService {
         Object.values(despesas).forEach(despesa => {
           despesa.fontesDeRecurso.forEach(fonte => {
             if (fonte.creditoId === creditoId) {
-              if (despesa.status === 'Empenhado' || despesa.status === 'Liquidado' || despesa.status === 'Pago') {
+              // Considerar empenho se a fonte tem nota de empenho
+              if (fonte.notaEmpenho && fonte.dataEmpenho) {
                 valorEmpenhado += fonte.valorUtilizado;
               }
-              if (despesa.status === 'Pago') {
+              // Considerar pago se a fonte tem ordem bancária
+              if (fonte.ordemBancaria && fonte.dataPagamento) {
                 valorPago += fonte.valorUtilizado;
               }
             }
@@ -175,9 +177,16 @@ export class FirebaseService {
       const newDespesaRef = push(despesasRef);
       const despesaId = newDespesaRef.key!;
       
+      // Gerar IDs únicos para cada fonte de recurso
+      const fontesComIds = despesa.fontesDeRecurso.map(fonte => ({
+        ...fonte,
+        id: fonte.id || push(ref(database)).key!
+      }));
+      
       const despesaWithId: Despesa = {
         ...despesa,
-        id: despesaId
+        id: despesaId,
+        fontesDeRecurso: fontesComIds
       };
       
       await set(newDespesaRef, despesaWithId);
@@ -190,9 +199,15 @@ export class FirebaseService {
 
   async updateDespesa(despesaId: string, updates: Partial<Despesa>): Promise<void> {
     try {
-      // Se as fontes de recurso foram alteradas, validar saldos
+      // Se as fontes de recurso foram alteradas, validar saldos e gerar IDs
       if (updates.fontesDeRecurso) {
         await this.validarSaldoCreditos(updates.fontesDeRecurso, despesaId);
+        
+        // Garantir que todas as fontes tenham IDs únicos
+        updates.fontesDeRecurso = updates.fontesDeRecurso.map(fonte => ({
+          ...fonte,
+          id: fonte.id || push(ref(database)).key!
+        }));
       }
       
       const despesaRef = ref(database, `despesas/${despesaId}`);
@@ -268,15 +283,17 @@ export class FirebaseService {
       totalCreditos = creditosFiltrados.length;
       valorGlobalConsolidado = creditosFiltrados.reduce((total, credito) => total + credito.valorGlobal, 0);
       
-      // Calcular valores das despesas
+      // Calcular valores das despesas baseado nas transações individuais
       Object.values(despesas).forEach(despesa => {
         despesa.fontesDeRecurso.forEach(fonte => {
           const credito = creditosFiltrados.find(c => c.id === fonte.creditoId);
           if (credito) {
-            if (despesa.status === 'Empenhado' || despesa.status === 'Liquidado' || despesa.status === 'Pago') {
+            // Considerar empenhado se a fonte tem nota de empenho
+            if (fonte.notaEmpenho && fonte.dataEmpenho) {
               valorEmpenhado += fonte.valorUtilizado;
             }
-            if (despesa.status === 'Pago') {
+            // Considerar pago se a fonte tem ordem bancária
+            if (fonte.ordemBancaria && fonte.dataPagamento) {
               valorLiquidadoPago += fonte.valorUtilizado;
             }
           }
@@ -495,6 +512,77 @@ export class FirebaseService {
   private formatarData(data: string): string {
     const [ano, mes, dia] = data.split('-');
     return `${dia}/${mes}/${ano}`;
+  }
+
+  // Search methods for tracking
+  async searchDespesasByObjeto(searchTerm: string): Promise<Despesa[]> {
+    try {
+      const despesas = await this.getAllDespesas();
+      return Object.values(despesas).filter(despesa => 
+        despesa.objeto.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    } catch (error) {
+      throw new FirebaseServiceError('Failed to search expenses', error);
+    }
+  }
+
+  async searchCreditosByCodigo(searchTerm: string): Promise<Credito[]> {
+    try {
+      const creditos = await this.getAllCreditos();
+      return Object.values(creditos).filter(credito => 
+        credito.creditoCodigo.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    } catch (error) {
+      throw new FirebaseServiceError('Failed to search credits', error);
+    }
+  }
+
+  // Get expense details with full credit and transaction information
+  async getDespesaDetailsWithCredits(despesaId: string): Promise<Despesa & {
+    fontesComCreditos: Array<{
+      fonte: FonteDeRecurso;
+      credito: Credito;
+    }>
+  } | null> {
+    try {
+      const despesa = await this.getDespesaById(despesaId);
+      if (!despesa) return null;
+
+      const creditos = await this.getAllCreditos();
+      const fontesComCreditos = despesa.fontesDeRecurso.map(fonte => ({
+        fonte,
+        credito: creditos[fonte.creditoId]
+      })).filter(item => item.credito);
+
+      return {
+        ...despesa,
+        fontesComCreditos
+      };
+    } catch (error) {
+      throw new FirebaseServiceError('Failed to get expense details', error);
+    }
+  }
+
+  // Get all expenses funded by a specific credit
+  async getDespesasByCreditoId(creditoId: string): Promise<Array<{
+    despesa: Despesa;
+    participacao: FonteDeRecurso;
+  }>> {
+    try {
+      const despesas = await this.getAllDespesas();
+      const result: Array<{ despesa: Despesa; participacao: FonteDeRecurso }> = [];
+
+      Object.values(despesas).forEach(despesa => {
+        const fonte = despesa.fontesDeRecurso.find(f => f.creditoId === creditoId);
+        if (fonte) {
+          result.push({ despesa, participacao: fonte });
+        }
+      });
+
+      return result;
+    } catch (error) {
+      throw new FirebaseServiceError('Failed to get expenses by credit', error);
+    }
   }
 }
 

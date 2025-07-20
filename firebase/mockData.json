@@ -1,0 +1,125 @@
+{
+  "creditos": {
+    "DC00005_2019": {
+      "id": "DC00005_2019",
+      "creditoCodigo": "2019DC00005",
+      "anoExercicio": 2019,
+      "valorGlobal": 2328318,
+      "eixos": ["Valorização dos Profissionais de Segurança Pública (VPS)"],
+      "natureza": "I449000",
+      "dataLancamento": "2019-01-01",
+      "origem": {
+        "tipo": "Ano vigente",
+        "descricao": "Crédito original do ano de 2019"
+      }
+    },
+    "DC00006_2020": {
+      "id": "DC00006_2020",
+      "creditoCodigo": "2020DC00006",
+      "anoExercicio": 2020,
+      "valorGlobal": 1850000,
+      "eixos": ["Enfrentamento à Criminalidade Violenta (ECV)", "Fortalecimento das Instituições de Segurança Pública e Defesa Social (FISPDS)"],
+      "natureza": "I339030",
+      "dataLancamento": "2020-01-01",
+      "origem": {
+        "tipo": "Ano vigente",
+        "descricao": "Crédito original do ano de 2020"
+      }
+    },
+    "DC00007_2021": {
+      "id": "DC00007_2021",
+      "creditoCodigo": "2021DC00007",
+      "anoExercicio": 2021,
+      "valorGlobal": 3200000,
+      "eixos": ["Valorização dos Profissionais de Segurança Pública (VPS)"],
+      "natureza": "I449052",
+      "dataLancamento": "2021-01-01",
+      "origem": {
+        "tipo": "Ano vigente",
+        "descricao": "Crédito original do ano de 2021"
+      }
+    }
+  },
+  "despesas": {
+    "despesa_01": {
+      "id": "despesa_01",
+      "processoSEI": "SEI270003000946_2024",
+      "objeto": "BICICLETA ERGOMÉTRICA CARDIO",
+      "valorTotal": 9833,
+      "status": "Pago",
+      "fontesDeRecurso": [
+        {
+          "id": "fonte_01_01",
+          "creditoId": "DC00007_2021",
+          "valorUtilizado": 9833,
+          "notaEmpenho": "2024NE00123",
+          "dataEmpenho": "2024-05-10",
+          "ordemBancaria": "2024OB45678",
+          "dataPagamento": "2024-06-15"
+        }
+      ],
+      "dataPrestacaoContas": null,
+      "prestacaoContasInfo": null,
+      "metaAssociada": "meta_01",
+      "acaoAssociada": "acao_01"
+    },
+    "despesa_02": {
+      "id": "despesa_02",
+      "processoSEI": "SEI270003000947_2024",
+      "objeto": "EQUIPAMENTO DE PROTEÇÃO INDIVIDUAL",
+      "valorTotal": 150000,
+      "status": "Empenhado",
+      "fontesDeRecurso": [
+        {
+          "id": "fonte_02_01",
+          "creditoId": "DC00006_2020",
+          "valorUtilizado": 75000,
+          "notaEmpenho": "2024NE00124",
+          "dataEmpenho": "2024-04-20"
+        },
+        {
+          "id": "fonte_02_02",
+          "creditoId": "DC00007_2021",
+          "valorUtilizado": 75000,
+          "notaEmpenho": "2024NE00125",
+          "dataEmpenho": "2024-04-20"
+        }
+      ],
+      "dataPrestacaoContas": null,
+      "prestacaoContasInfo": null,
+      "metaAssociada": "meta_02",
+      "acaoAssociada": "acao_02"
+    },
+    "despesa_03": {
+      "id": "despesa_03",
+      "processoSEI": "SEI270003000948_2024",
+      "objeto": "SISTEMA DE COMUNICAÇÃO DIGITAL",
+      "valorTotal": 500000,
+      "status": "Planejado",
+      "fontesDeRecurso": [
+        {
+          "id": "fonte_03_01",
+          "creditoId": "DC00006_2020",
+          "valorUtilizado": 500000
+        }
+      ],
+      "dataPrestacaoContas": null,
+      "prestacaoContasInfo": null,
+      "metaAssociada": "meta_03",
+      "acaoAssociada": "acao_03"
+    }
+  },
+  "metasAcoes": {
+    "meta_01": {
+      "descricao": "Modernização da infraestrutura operacional"
+    },
+    "meta_02": {
+      "descricao": "Equipamentos de segurança pessoal"
+    },
+    "meta_03": {
+      "descricao": "Sistemas de comunicação avançados"
+    }
+  },
+  "fechamentosAnuais": {},
+  "prestacoesContas": {}
+}

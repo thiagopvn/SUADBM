@@ -139,7 +139,7 @@ export default function RelatoriosPage() {
     return creditosWithCalculations.map(credito => ({
       'Código do Crédito': credito.creditoCodigo,
       'Ano': credito.anoExercicio,
-      'Ação/Eixo': credito.acaoEixo,
+      'Eixos': credito.eixos.join(', '),
       'Origem': credito.origem?.tipo === 'Ano vigente' ? 'Ano vigente' : 'Anos anteriores',
       'Valor Global': formatCurrency(credito.valorGlobal),
       'Valor Empenhado': formatCurrency(credito.valorEmpenhado),
@@ -151,19 +151,29 @@ export default function RelatoriosPage() {
 
   const generateCreditsByActionReport = () => {
     const groupedByAction = creditosWithCalculations.reduce((acc, credito) => {
-      const action = credito.acaoEixo;
-      if (!acc[action]) {
-        acc[action] = {
-          totalCreditos: 0,
-          valorTotal: 0,
-          valorEmpenhado: 0,
-          valorPago: 0
-        };
-      }
-      acc[action].totalCreditos++;
-      acc[action].valorTotal += credito.valorGlobal;
-      acc[action].valorEmpenhado += credito.valorEmpenhado;
-      acc[action].valorPago += credito.valorPago;
+      // Distribute credit values equally among all eixos
+      const valuePerEixo = {
+        totalCreditos: 1 / credito.eixos.length,
+        valorTotal: credito.valorGlobal / credito.eixos.length,
+        valorEmpenhado: credito.valorEmpenhado / credito.eixos.length,
+        valorPago: credito.valorPago / credito.eixos.length
+      };
+      
+      credito.eixos.forEach(eixo => {
+        if (!acc[eixo]) {
+          acc[eixo] = {
+            totalCreditos: 0,
+            valorTotal: 0,
+            valorEmpenhado: 0,
+            valorPago: 0
+          };
+        }
+        acc[eixo].totalCreditos += valuePerEixo.totalCreditos;
+        acc[eixo].valorTotal += valuePerEixo.valorTotal;
+        acc[eixo].valorEmpenhado += valuePerEixo.valorEmpenhado;
+        acc[eixo].valorPago += valuePerEixo.valorPago;
+      });
+      
       return acc;
     }, {} as Record<string, any>);
     
@@ -186,9 +196,18 @@ export default function RelatoriosPage() {
         'Objeto': despesa.objeto,
         'Valor Total': formatCurrency(despesa.valorTotal),
         'Status': despesa.status,
-        'Data de Empenho': despesa.dataEmpenho || '-',
-        'Nota de Empenho': despesa.notaEmpenho || '-',
-        'Data de Pagamento': despesa.dataPagamento || '-',
+        'Datas de Empenho': despesa.fontesDeRecurso
+          .filter(f => f.dataEmpenho)
+          .map(f => f.dataEmpenho)
+          .join(', ') || '-',
+        'Notas de Empenho': despesa.fontesDeRecurso
+          .filter(f => f.notaEmpenho)
+          .map(f => f.notaEmpenho)
+          .join(', ') || '-',
+        'Datas de Pagamento': despesa.fontesDeRecurso
+          .filter(f => f.dataPagamento)
+          .map(f => f.dataPagamento)
+          .join(', ') || '-',
         'Fontes de Financiamento': despesa.fontesDeRecurso.length > 1 ? 'Múltiplas' : 'Única'
       }));
   };
@@ -203,7 +222,7 @@ export default function RelatoriosPage() {
       
       return {
         'Código do Crédito': credito.creditoCodigo,
-        'Ação/Eixo': credito.acaoEixo,
+        'Eixos': credito.eixos.join(', '),
         'Total de Despesas': totalDespesas,
         'Despesas com Prestação': despesasComPrestacao,
         'Percentual de Compliance': totalDespesas > 0 ? `${((despesasComPrestacao / totalDespesas) * 100).toFixed(2)}%` : '0%',
@@ -215,12 +234,17 @@ export default function RelatoriosPage() {
   const generateExpensesByPeriodReport = (startDate: string, endDate: string) => {
     return despesasWithCredits
       .filter(despesa => {
-        const expenseDate = despesa.dataEmpenho;
-        return expenseDate && expenseDate >= startDate && expenseDate <= endDate;
+        // Check if any funding source has an empenho date within the range
+        return despesa.fontesDeRecurso.some(fonte => 
+          fonte.dataEmpenho && fonte.dataEmpenho >= startDate && fonte.dataEmpenho <= endDate
+        );
       })
       .map(despesa => ({
         'Créditos Associados': despesa.creditosAssociados.map(c => c.creditoCodigo).join(', '),
-        'Data de Empenho': despesa.dataEmpenho,
+        'Datas de Empenho': despesa.fontesDeRecurso
+          .filter(f => f.dataEmpenho)
+          .map(f => f.dataEmpenho)
+          .join(', '),
         'Processo SEI': despesa.processoSEI,
         'Objeto': despesa.objeto,
         'Valor Total': formatCurrency(despesa.valorTotal),

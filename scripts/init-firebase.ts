@@ -1,7 +1,8 @@
 #!/usr/bin/env tsx
 
 import { firebaseService } from '../lib/firebase-service';
-import { mockData } from '../firebase/mockData';
+import mockDataJson from '../firebase/mockData.json';
+import type { MockData } from '../types';
 
 async function initializeFirebase() {
   console.log('🚀 Initializing Firebase with mock data...');
@@ -15,6 +16,7 @@ async function initializeFirebase() {
     }
     
     // Initialize with mock data
+    const mockData = mockDataJson as MockData;
     await firebaseService.initializeWithMockData(mockData);
     
     console.log('✅ Firebase initialized successfully with mock data!');

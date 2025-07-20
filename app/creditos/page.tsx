@@ -30,7 +30,7 @@ export default function CreditosPage() {
     if (searchTerm) {
       filtered = filtered.filter(credito => 
         credito.creditoCodigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        credito.acaoEixo.toLowerCase().includes(searchTerm.toLowerCase())
+        credito.eixos.some(eixo => eixo.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -144,7 +144,7 @@ export default function CreditosPage() {
                     Código do Crédito
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ação / Eixo
+                    Eixos
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Origem
@@ -185,8 +185,16 @@ export default function CreditosPage() {
                         {credito.creditoCodigo}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        <div className="max-w-xs truncate" title={credito.acaoEixo}>
-                          {credito.acaoEixo}
+                        <div className="flex flex-wrap gap-1">
+                          {credito.eixos.map((eixo, index) => (
+                            <span 
+                              key={index}
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                              title={eixo}
+                            >
+                              {eixo.split('(')[0].trim()}
+                            </span>
+                          ))}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">

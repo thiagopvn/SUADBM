@@ -1,9 +1,0 @@
-{
-  "/_not-found/page": "/_not-found",
-  "/configuracoes/page": "/configuracoes",
-  "/creditos/[id]/page": "/creditos/[id]",
-  "/relatorios/page": "/relatorios",
-  "/rastreamento/page": "/rastreamento",
-  "/page": "/",
-  "/creditos/page": "/creditos"
-}

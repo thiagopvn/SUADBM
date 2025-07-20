@@ -21,7 +21,7 @@ export default function ConfiguracoesPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [profileData, setProfileData] = useState({
-    name: user?.displayName || 'Administrador SICOF',
+    name: user?.displayName || 'Administrador SUAD',
     email: user?.email || 'admin@cbmerj.rj.gov.br',
     unit: 'Comando Geral'
   });
@@ -86,7 +86,7 @@ export default function ConfiguracoesPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `sicof-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `suad-backup-${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

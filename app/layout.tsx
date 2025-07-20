@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SICOF - Sistema Integrado de Controle Orçamentário e Financeiro",
+  title: "SUAD CBMERJ - Superintendência Administrativa",
   description: "Sistema de gestão orçamentária e financeira do CBMERJ",
 };
 

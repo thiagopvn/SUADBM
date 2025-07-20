@@ -204,7 +204,7 @@ export default function CreditoDetalhesPage() {
                   <span>•</span>
                   <span>Natureza: {credito.natureza}</span>
                   <span>•</span>
-                  <span>Origem: {credito.origem.tipo === 'Original' ? 'Ano vigente' : 'Restos de anos anteriores'}</span>
+                  <span>Origem: {credito.origem?.tipo === 'Original' ? 'Ano vigente' : 'Restos de anos anteriores'}</span>
                 </div>
               </div>
             </div>

@@ -26,29 +26,6 @@
       "static/chunks/673-ac07d11680ff2d2a.js",
       "static/chunks/app/configuracoes/page-8d3c712fc1316c57.js"
     ],
-    "/creditos/[id]/page": [
-      "static/chunks/webpack-8b27dab13bb88a57.js",
-      "static/chunks/4bd1b696-9911af18dede28aa.js",
-      "static/chunks/964-31dafd2ad9407dd2.js",
-      "static/chunks/main-app-d464cdb92c6f8e1f.js",
-      "static/chunks/457b8330-259447aafb20d426.js",
-      "static/chunks/ae6eea6a-7d69b53140e1d74a.js",
-      "static/chunks/809-b4011be58346cbc1.js",
-      "static/chunks/343-a715ffb3d44cc82b.js",
-      "static/chunks/673-ac07d11680ff2d2a.js",
-      "static/chunks/app/creditos/[id]/page-7d7810355a2497dc.js"
-    ],
-    "/creditos/page": [
-      "static/chunks/webpack-8b27dab13bb88a57.js",
-      "static/chunks/4bd1b696-9911af18dede28aa.js",
-      "static/chunks/964-31dafd2ad9407dd2.js",
-      "static/chunks/main-app-d464cdb92c6f8e1f.js",
-      "static/chunks/457b8330-259447aafb20d426.js",
-      "static/chunks/ae6eea6a-7d69b53140e1d74a.js",
-      "static/chunks/809-b4011be58346cbc1.js",
-      "static/chunks/673-ac07d11680ff2d2a.js",
-      "static/chunks/app/creditos/page-289d4035280e6934.js"
-    ],
     "/page": [
       "static/chunks/webpack-8b27dab13bb88a57.js",
       "static/chunks/4bd1b696-9911af18dede28aa.js",
@@ -61,6 +38,29 @@
       "static/chunks/673-ac07d11680ff2d2a.js",
       "static/chunks/app/page-829902199ca2df12.js"
     ],
+    "/creditos/[id]/page": [
+      "static/chunks/webpack-8b27dab13bb88a57.js",
+      "static/chunks/4bd1b696-9911af18dede28aa.js",
+      "static/chunks/964-31dafd2ad9407dd2.js",
+      "static/chunks/main-app-d464cdb92c6f8e1f.js",
+      "static/chunks/457b8330-259447aafb20d426.js",
+      "static/chunks/ae6eea6a-7d69b53140e1d74a.js",
+      "static/chunks/809-b4011be58346cbc1.js",
+      "static/chunks/343-a715ffb3d44cc82b.js",
+      "static/chunks/673-ac07d11680ff2d2a.js",
+      "static/chunks/app/creditos/[id]/page-4961f2307ae6dd11.js"
+    ],
+    "/creditos/page": [
+      "static/chunks/webpack-8b27dab13bb88a57.js",
+      "static/chunks/4bd1b696-9911af18dede28aa.js",
+      "static/chunks/964-31dafd2ad9407dd2.js",
+      "static/chunks/main-app-d464cdb92c6f8e1f.js",
+      "static/chunks/457b8330-259447aafb20d426.js",
+      "static/chunks/ae6eea6a-7d69b53140e1d74a.js",
+      "static/chunks/809-b4011be58346cbc1.js",
+      "static/chunks/673-ac07d11680ff2d2a.js",
+      "static/chunks/app/creditos/page-d6a3ef75c46672d9.js"
+    ],
     "/relatorios/page": [
       "static/chunks/webpack-8b27dab13bb88a57.js",
       "static/chunks/4bd1b696-9911af18dede28aa.js",
@@ -70,7 +70,7 @@
       "static/chunks/ae6eea6a-7d69b53140e1d74a.js",
       "static/chunks/809-b4011be58346cbc1.js",
       "static/chunks/673-ac07d11680ff2d2a.js",
-      "static/chunks/app/relatorios/page-26a64064018c9247.js"
+      "static/chunks/app/relatorios/page-9b7cdf8c667aecde.js"
     ]
   }
 }

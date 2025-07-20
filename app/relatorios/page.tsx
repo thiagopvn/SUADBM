@@ -140,7 +140,7 @@ export default function RelatoriosPage() {
       'Código do Crédito': credito.creditoCodigo,
       'Ano': credito.anoExercicio,
       'Ação/Eixo': credito.acaoEixo,
-      'Origem': credito.origem.tipo === 'Original' ? 'Ano vigente' : 'Restos',
+      'Origem': credito.origem?.tipo === 'Original' ? 'Ano vigente' : 'Restos',
       'Valor Global': formatCurrency(credito.valorGlobal),
       'Valor Empenhado': formatCurrency(credito.valorEmpenhado),
       'Valor Pago': formatCurrency(credito.valorPago),

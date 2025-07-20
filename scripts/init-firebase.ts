@@ -1,30 +1,26 @@
 #!/usr/bin/env tsx
 
 import { firebaseService } from '../lib/firebase-service';
-import mockDataJson from '../firebase/mockData.json';
-import type { MockData } from '../types';
+// import mockDataJson from '../firebase/mockData.json';
+// import type { MockData } from '../types';
 
 async function initializeFirebase() {
-  console.log('🚀 Initializing Firebase with mock data...');
+  console.log('🚀 Checking Firebase connection...');
   
   try {
     // Check if Firebase is accessible
     const isConnected = await firebaseService.checkConnection();
     
     if (!isConnected) {
-      console.warn('⚠️  Firebase connection check failed. Proceeding anyway...');
+      console.warn('⚠️  Firebase connection check failed.');
+      process.exit(1);
     }
     
-    // Initialize with mock data
-    const mockData = mockDataJson as MockData;
-    await firebaseService.initializeWithMockData(mockData);
-    
-    console.log('✅ Firebase initialized successfully with mock data!');
-    console.log(`📊 Initialized with ${Object.keys(mockData.creditos).length} credits`);
-    console.log(`📈 Total expenses: ${Object.keys(mockData.despesas || {}).length}`);
+    console.log('✅ Firebase connection successful!');
+    console.log('Use the web interface to import data');
     
   } catch (error) {
-    console.error('❌ Failed to initialize Firebase:', error);
+    console.error('❌ Failed to connect to Firebase:', error);
     process.exit(1);
   }
 }

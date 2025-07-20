@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { firebaseService } from '@/lib/firebase-service';
-import mockDataJson from '@/firebase/mockData.json';
-import type { MockData } from '@/types';
 
 export function useFirebaseInit() {
   const [initialized, setInitialized] = useState(false);
@@ -16,15 +14,8 @@ export function useFirebaseInit() {
         setLoading(true);
         setError(null);
 
-        // Check if data already exists
-        const existingCreditos = await firebaseService.getAllCreditos();
-        
-        // If no data exists, initialize with mock data
-        if (Object.keys(existingCreditos).length === 0) {
-          console.log('No data found. Initializing with mock data...');
-          await firebaseService.initializeWithMockData(mockDataJson as MockData);
-          console.log('Firebase initialized with mock data');
-        }
+        // Simply verify Firebase connection
+        await firebaseService.getAllCreditos();
         
         setInitialized(true);
       } catch (err) {

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Eye, FileText, DollarSign } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, Eye, FileText, DollarSign, ArrowLeft } from 'lucide-react';
+import { Navbar } from '@/components/layout/navbar';
 import { firebaseService } from '@/lib/firebase-service';
 import type { Despesa, Credito } from '@/types';
 
@@ -21,6 +23,7 @@ interface DespesaDetalhes extends Despesa {
 }
 
 export default function RastreamentoPage() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [searching, setSearching] = useState(false);
   const [resultadosDespesas, setResultadosDespesas] = useState<Despesa[]>([]);
@@ -72,35 +75,48 @@ export default function RastreamentoPage() {
   }, [searchTerm, buscarResultados]);
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white shadow-sm rounded-lg p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">
-          Rastreamento Universal
-        </h1>
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <button 
+            onClick={() => router.push('/')}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar para Dashboard
+          </button>
 
-        {/* Campo de Pesquisa Universal */}
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
-            placeholder="Digite o objeto da despesa ou código do crédito..."
-          />
-          {searching && (
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+          <div className="space-y-6">
+            <div className="bg-white shadow-sm rounded-lg p-6">
+              <h1 className="text-2xl font-bold text-gray-900 mb-6">
+                Rastreamento Universal
+              </h1>
+
+              {/* Campo de Pesquisa Universal */}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+                  placeholder="Digite o objeto da despesa ou código do crédito..."
+                />
+                {searching && (
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-sm text-gray-600 mt-2">
+                Busque por objetos de despesas (ex: &quot;Helicóptero&quot;) ou códigos de créditos (ex: &quot;2024DC00001&quot;)
+              </p>
             </div>
-          )}
-        </div>
-
-        <p className="text-sm text-gray-600 mt-2">
-          Busque por objetos de despesas (ex: &quot;Helicóptero&quot;) ou códigos de créditos (ex: &quot;2024DC00001&quot;)
-        </p>
-      </div>
 
       {(resultadosDespesas.length > 0 || resultadosCreditos.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -218,13 +234,13 @@ export default function RastreamentoPage() {
                           ))}
                         </div>
                       </div>
-                      <a
-                        href={`/creditos/${credito.id}`}
+                      <button
+                        onClick={() => router.push(`/creditos/${credito.id}`)}
                         className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-md"
                       >
                         <Eye className="h-4 w-4" />
                         Ver Auditoria
-                      </a>
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -381,10 +397,13 @@ export default function RastreamentoPage() {
               >
                 Fechar
               </button>
+              </div>
             </div>
           </div>
+        )}
+          </div>
         </div>
-      )}
+      </main>
     </div>
   );
 }

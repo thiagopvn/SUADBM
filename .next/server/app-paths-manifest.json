@@ -1,8 +1,8 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
+  "/configuracoes/page": "app/configuracoes/page.js",
   "/creditos/[id]/page": "app/creditos/[id]/page.js",
   "/creditos/page": "app/creditos/page.js",
   "/page": "app/page.js",
-  "/relatorios/page": "app/relatorios/page.js",
-  "/configuracoes/page": "app/configuracoes/page.js"
+  "/relatorios/page": "app/relatorios/page.js"
 }

@@ -6,35 +6,45 @@ import {
   DollarSign, 
   TrendingDown, 
   Wallet,
-  FileText 
+  FileText,
+  ArrowUpCircle
 } from "lucide-react";
 
 interface SummaryCardsProps {
-  totalGlobal: number;
-  totalGasto: number;
+  valorGlobalConsolidado: number;
+  valorEmpenhado: number;
+  valorLiquidadoPago: number;
   saldoDisponivel: number;
   totalCreditos: number;
 }
 
 export function SummaryCards({ 
-  totalGlobal, 
-  totalGasto, 
+  valorGlobalConsolidado, 
+  valorEmpenhado,
+  valorLiquidadoPago, 
   saldoDisponivel, 
   totalCreditos 
 }: SummaryCardsProps) {
   const cards = [
     {
       title: "Valor Global Consolidado",
-      value: formatCurrency(totalGlobal),
+      value: formatCurrency(valorGlobalConsolidado),
       icon: DollarSign,
       description: "Total de todos os créditos",
       color: "text-blue-600"
     },
     {
-      title: "Total Gasto",
-      value: formatCurrency(totalGasto),
+      title: "Valor Empenhado",
+      value: formatCurrency(valorEmpenhado),
+      icon: ArrowUpCircle,
+      description: "Recursos já comprometidos",
+      color: "text-yellow-600"
+    },
+    {
+      title: "Valor Liquidado/Pago",
+      value: formatCurrency(valorLiquidadoPago),
       icon: TrendingDown,
-      description: "Despesas pagas",
+      description: "Despesas efetivamente pagas",
       color: "text-red-600"
     },
     {
@@ -54,7 +64,7 @@ export function SummaryCards({
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
       {cards.map((card, index) => {
         const Icon = card.icon;
         return (

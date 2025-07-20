@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { firebaseService } from '@/lib/firebase-service';
-import type { Credito } from '@/types';
+import type { Credito, CreditoWithCalculations } from '@/types';
 
 export function useCreditos() {
   const [creditos, setCreditos] = useState<Record<string, Credito>>({});
+  const [creditosWithCalculations, setCreditosWithCalculations] = useState<CreditoWithCalculations[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,8 +14,12 @@ export function useCreditos() {
     try {
       setLoading(true);
       setError(null);
-      const data = await firebaseService.getAllCreditos();
-      setCreditos(data);
+      const [creditosData, creditosCalculations] = await Promise.all([
+        firebaseService.getAllCreditos(),
+        firebaseService.getCreditosWithCalculations()
+      ]);
+      setCreditos(creditosData);
+      setCreditosWithCalculations(creditosCalculations);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch credits');
     } finally {
@@ -56,12 +61,19 @@ export function useCreditos() {
     }
   }, [fetchCreditos]);
 
+  // Helper function to get credits available for use (with positive balance)
+  const getCreditosDisponiveis = useCallback(() => {
+    return creditosWithCalculations.filter(credito => credito.saldoDisponivel > 0);
+  }, [creditosWithCalculations]);
+
   useEffect(() => {
     fetchCreditos();
   }, [fetchCreditos]);
 
   return {
     creditos,
+    creditosWithCalculations,
+    creditosDisponiveis: getCreditosDisponiveis(),
     loading,
     error,
     refetch: fetchCreditos,

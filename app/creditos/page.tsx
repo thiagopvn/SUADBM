@@ -5,35 +5,27 @@ import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/layout/navbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, calculateTotalSpent } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { Plus, Search, Filter } from "lucide-react";
 import type { CreditoWithCalculations, Credito } from "@/types";
-import { useCreditos } from "@/hooks/useFirebase";
+import { useCreditos } from "@/hooks/use-creditos";
 import { CreditoForm } from "@/components/forms/credito-form";
 
 export default function CreditosPage() {
   const router = useRouter();
-  const { creditos: creditosData, loading, error, adicionarCredito } = useCreditos();
-  const [creditosCalculated, setCreditosCalculated] = useState<CreditoWithCalculations[]>([]);
+  const { creditos, creditosWithCalculations, loading, error, createCredito } = useCreditos();
   const [filteredCreditos, setFilteredCreditos] = useState<CreditoWithCalculations[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>("todos");
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    // Convert Firebase data to list with calculations
-    const creditosList = creditosData.map(credito => ({
-      ...credito,
-      valorGasto: calculateTotalSpent(credito.despesas || {})
-    }));
-    
-    setCreditosCalculated(creditosList);
-    setFilteredCreditos(creditosList);
-  }, [creditosData]);
+    setFilteredCreditos(creditosWithCalculations);
+  }, [creditosWithCalculations]);
 
   useEffect(() => {
     // Aplicar filtros
-    let filtered = creditosCalculated;
+    let filtered = creditosWithCalculations;
 
     if (searchTerm) {
       filtered = filtered.filter(credito => 
@@ -49,13 +41,13 @@ export default function CreditosPage() {
     }
 
     setFilteredCreditos(filtered);
-  }, [searchTerm, selectedYear, creditosCalculated]);
+  }, [searchTerm, selectedYear, creditosWithCalculations]);
 
-  const years = [...new Set(creditosCalculated.map(c => c.anoExercicio))].sort((a, b) => b - a);
+  const years = [...new Set(creditosWithCalculations.map(c => c.anoExercicio))].sort((a, b) => b - a);
 
   const handleCreateCredito = async (creditoData: Omit<Credito, 'id'>) => {
     try {
-      await adicionarCredito(creditoData);
+      await createCredito(creditoData);
       setShowForm(false);
     } catch (error) {
       console.error('Failed to create credito:', error);
@@ -104,7 +96,7 @@ export default function CreditosPage() {
             </h1>
             <button 
               onClick={() => setShowForm(true)}
-              className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center gap-2"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
               Adicionar Novo Crédito
@@ -119,7 +111,7 @@ export default function CreditosPage() {
                   <input
                     type="text"
                     placeholder="Pesquisar por código ou ação/eixo..."
-                    className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -127,7 +119,7 @@ export default function CreditosPage() {
                 <div className="flex items-center gap-2">
                   <Filter className="text-gray-400 w-4 h-4" />
                   <select
-                    className="border rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="border rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(e.target.value)}
                   >
@@ -155,13 +147,19 @@ export default function CreditosPage() {
                     Ação / Eixo
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Origem
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Valor Global
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Valor Gasto
+                    Valor Empenhado
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Saldo Atual
+                    Valor Pago
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Saldo Disponível
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -170,7 +168,7 @@ export default function CreditosPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredCreditos.map((credito) => {
-                  const saldoPercentual = ((credito.saldoAtual / credito.valorGlobal) * 100).toFixed(0);
+                  const saldoPercentual = ((credito.saldoDisponivel / credito.valorGlobal) * 100).toFixed(0);
                   const status = parseInt(saldoPercentual) > 50 ? "Disponível" : 
                                 parseInt(saldoPercentual) > 20 ? "Atenção" : "Crítico";
                   
@@ -191,19 +189,27 @@ export default function CreditosPage() {
                           {credito.acaoEixo}
                         </div>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <Badge variant={credito.origem.tipo === 'Original' ? 'default' : 'secondary'}>
+                          {credito.origem.tipo === 'Original' ? 'Ano vigente' : 'Restos'}
+                        </Badge>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatCurrency(credito.valorGlobal)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(credito.valorGasto)}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-yellow-600">
+                        {formatCurrency(credito.valorEmpenhado)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(credito.saldoAtual)}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
+                        {formatCurrency(credito.valorPago)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
+                        {formatCurrency(credito.saldoDisponivel)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Badge 
-                          variant={status === "Disponível" ? "success" : 
-                                  status === "Atenção" ? "warning" : "destructive"}
+                          variant={status === "Disponível" ? "default" : 
+                                  status === "Atenção" ? "secondary" : "destructive"}
                         >
                           {saldoPercentual}% - {status}
                         </Badge>
@@ -218,7 +224,7 @@ export default function CreditosPage() {
           {filteredCreditos.length === 0 && !loading && (
             <div className="bg-white shadow rounded-md p-8 text-center">
               <div className="text-gray-500">
-                {creditosCalculated.length === 0 
+                {creditosWithCalculations.length === 0 
                   ? "Nenhum crédito encontrado. Adicione o primeiro crédito!"
                   : "Nenhum crédito corresponde aos filtros aplicados."
                 }
@@ -232,6 +238,7 @@ export default function CreditosPage() {
         <CreditoForm
           onSubmit={handleCreateCredito}
           onCancel={() => setShowForm(false)}
+          creditosAnteriores={Object.values(creditos)}
         />
       )}
     </div>

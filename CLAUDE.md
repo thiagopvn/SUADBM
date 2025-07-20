@@ -4,96 +4,125 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SICOF (Sistema Integrado de Controle Orçamentário e Financeiro) is a budget and financial control system for CBMERJ (Corpo de Bombeiros Militar do Estado do Rio de Janeiro). The system manages the complete lifecycle of public budget allocations, from initial credit decentralization through payment and accountability.
+SICOF (Sistema Integrado de Controle Orçamentário e Financeiro) is a budgetary and financial control system for CBMERJ (Brazilian Military Fire Department). It manages budget credits, expenses, goals, and annual closures.
 
-## Commands
+## Essential Commands
 
 ```bash
 # Development
-npm run dev       # Start development server on http://localhost:3000
+npm run dev          # Start development server on http://localhost:3000
 
-# Production
-npm run build     # Create production build
-npm run start     # Start production server
+# Build & Production
+npm run build        # Create production build
+npm run start        # Start production server
 
 # Code Quality
-npm run lint      # Run ESLint checks
+npm run lint         # Run ESLint
 ```
 
-## Architecture
+## Architecture Overview
 
-### Core Business Concepts
+### Tech Stack
+- **Framework**: Next.js 15 with App Router (React 19)
+- **Language**: TypeScript with strict mode
+- **Database**: Firebase Realtime Database
+- **Styling**: Tailwind CSS with custom theme
+- **State**: React hooks + Firebase real-time sync
 
-1. **Crédito (Budget Credit)**: Initial budget allocation with properties:
-   - `creditoCodigo`: Unique identifier (e.g., "2019DC00005")
-   - `anoExercicio`: Fiscal year
-   - `valorGlobal`: Total allocated amount
-   - `acaoEixo`: Budget action/axis category
-   - `natureza`: Expense nature code
+### Data Flow Pattern
+1. Firebase Realtime Database stores all data
+2. Custom hooks (`/hooks`) handle Firebase subscriptions and state
+3. Components consume data via hooks
+4. All mutations go through firebase-service.ts
 
-2. **Despesa (Expense)**: Individual expense within a credit following the public spending lifecycle:
-   - **Empenho** (Commitment): Budget reservation (`notaEmpenho`, `dataEmpenho`)
-   - **Liquidação** (Verification): Service/product delivery confirmation
-   - **Pagamento** (Payment): Actual payment (`ordemBancaria`, `dataPagamento`)
-   - **Prestação de Contas** (Accountability): Documentation and justification
+### Key Architectural Decisions
 
-3. **Fiscal Year Management**: 
-   - Budget credits are strictly tied to fiscal years
-   - Year-end balances cannot be automatically carried forward
-   - Remaining balances must be returned to central fund and redistributed
+1. **Firebase Integration**: All data operations go through `/lib/firebase-service.ts`. Never access Firebase directly from components.
 
-### Technical Architecture
+2. **Type Safety**: All data models are defined in `/types/index.ts`. Always use these types when working with:
+   - Credito (budget credits)
+   - Despesa (expenses)
+   - PrestacaoContas (account reports)
+   - MetaAcao (goals/actions)
+   - FechamentoAnual (annual closures)
 
-The project is split across two directories (needs consolidation):
-- `/root/projetos/SUAD/` - Contains the main application code
-- `/root/projetos/SUAD/sicof-cbmerj/` - Contains Firebase config and package files
+3. **Component Structure**:
+   - `/components/ui/` - Base UI components (Card, Badge, etc.)
+   - `/components/forms/` - Form components with validation
+   - `/components/dashboard/` - Dashboard-specific features
+   - `/components/charts/` - Recharts-based visualizations
+   - `/components/prestacao-contas/` - Account reporting components
 
-Key architectural decisions:
-- **Client Components**: Using "use client" directive for interactive features
-- **Mock Data**: Currently using `mockData.ts` instead of live Firebase
-- **Component Structure**: Atomic design with ui/, layout/, dashboard/, and charts/ components
-- **Styling**: Tailwind CSS with custom color schemes and CVA for component variants
-- **State Management**: React hooks (useState, useEffect) for local state
+4. **Routing**: File-based routing in `/app` directory:
+   - `/` - Dashboard with overview metrics
+   - `/creditos/[id]` - Credit detail pages
+   - `/relatorios` - Reports page
+   - `/configuracoes` - Settings page
 
-### Data Flow
+### Firebase Structure
 
-1. Dashboard aggregates data from all credits to show:
-   - Total global values, spent amounts, and available balances
-   - Charts showing evolution by year and distribution by action/axis
-   - Recent expenses across all credits
+```javascript
+{
+  creditos: {
+    [creditoId]: {
+      creditoCodigo: string,
+      valorGlobal: number,
+      anoExercicio: number,
+      dataLancamento: string,
+      despesas: {
+        [despesaId]: {
+          processoSEI: string,
+          objeto: string,
+          valorTotal: number,
+          status: string,
+          metaAssociada: string,
+          acaoAssociada: string
+          // ... other fields
+        }
+      }
+    }
+  },
+  prestacoesContas: {
+    [prestacaoId]: {
+      creditoId: string,
+      ano: number,
+      periodoLabel: string,
+      prazoFinal: string,
+      status: 'Pendente' | 'Em Atraso' | 'Entregue',
+      despesasVinculadas: string[]
+    }
+  },
+  metasAcoes: {
+    [metaId]: { descricao: string }
+  },
+  fechamentosAnuais: {
+    [fechamentoId]: {
+      totalDevolvido: number,
+      dataFechamento: string,
+      usuarioResponsavel: string
+    }
+  }
+}
+```
 
-2. Credit Management provides:
-   - Filterable list of all budget credits
-   - Detailed view of individual credit with all associated expenses
-   - Status tracking through the expense lifecycle
+### Development Guidelines
 
-## Firebase Integration
+1. **Adding New Features**:
+   - Create types in `/types/index.ts` first
+   - Add Firebase service methods in `/lib/firebase-service.ts`
+   - Create custom hook in `/hooks/` for data management
+   - Build UI components using existing patterns
 
-Currently configured but not actively used. The system is prepared for:
-- **Realtime Database**: For live data synchronization
-- **Authentication**: User access control (not implemented)
-- **Analytics**: Usage tracking (implemented with SSR safety checks)
+2. **Working with Forms**:
+   - Use existing form components from `/components/forms/`
+   - Always validate data before Firebase operations
+   - Handle loading and error states
 
-Firebase credentials are stored in:
-- `/sicof-cbmerj/firebase/config.ts` (hardcoded)
-- `/sicof-cbmerj/.env.local` (environment variables)
+3. **Styling**:
+   - Use Tailwind classes exclusively
+   - Follow existing color scheme (primary colors defined in tailwind.config.ts)
+   - Use CSS variables for dynamic theming
 
-## Key Files and Their Purposes
-
-- `app/page.tsx`: Dashboard with summary cards and charts
-- `app/creditos/page.tsx`: Credit list with search/filter capabilities  
-- `app/creditos/[id]/page.tsx`: Detailed credit view with expense table
-- `lib/utils.ts`: Currency formatting, date handling, status colors
-- `firebase/mockData.ts`: Sample data structure matching Firebase schema
-
-## Development Notes
-
-- The project uses Next.js 15 with App Router
-- TypeScript is configured for type safety with strict mode enabled
-- ESLint is configured with Next.js recommended rules
-- Recharts is used for data visualization
-- All currency values are in Brazilian Reais (BRL)
-- Date formats follow Brazilian convention (DD/MM/YYYY)
-- Status workflow: Planejado → Empenhado → Liquidado → Pago
-- All integration and typing errors have been resolved
-- The project builds successfully without warnings or errors
+4. **Path Imports**:
+   - Use `@/` alias for imports from root
+   - Example: `import { Credito } from '@/types'`

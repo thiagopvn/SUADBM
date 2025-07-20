@@ -19,7 +19,7 @@ async function initializeFirebase() {
     
     console.log('✅ Firebase initialized successfully with mock data!');
     console.log(`📊 Initialized with ${Object.keys(mockData.creditos).length} credits`);
-    console.log(`📈 Total expenses: ${Object.values(mockData.creditos).reduce((acc, credito) => acc + Object.keys(credito.despesas).length, 0)}`);
+    console.log(`📈 Total expenses: ${Object.keys(mockData.despesas || {}).length}`);
     
   } catch (error) {
     console.error('❌ Failed to initialize Firebase:', error);

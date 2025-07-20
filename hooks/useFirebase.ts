@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { database } from '@/firebase/config';
 import { ref, onValue, push, set, update, remove } from 'firebase/database';
+import { firebaseService } from '@/lib/firebase-service';
 import type { Credito, Despesa } from '@/types';
 
 export function useCreditos() {
@@ -42,12 +43,20 @@ export function useCreditos() {
     try {
       const creditosRef = ref(database, 'creditos');
       const novoCreditoRef = push(creditosRef);
+      const creditoId = novoCreditoRef.key!;
+      
       await set(novoCreditoRef, {
         ...credito,
-        id: novoCreditoRef.key,
+        id: creditoId,
         despesas: {}
       });
-      return novoCreditoRef.key;
+      
+      // Gerar primeira obrigação de prestação de contas
+      if (credito.dataLancamento) {
+        await firebaseService.gerarPrimeiraObrigacao(creditoId, credito.dataLancamento);
+      }
+      
+      return creditoId;
     } catch (err) {
       throw new Error('Erro ao adicionar crédito');
     }

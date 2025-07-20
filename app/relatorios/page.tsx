@@ -4,11 +4,13 @@ import { useState } from "react";
 import { Navbar } from "@/components/layout/navbar";
 import { Card } from "@/components/ui/card";
 import { useCreditos } from "@/hooks/use-creditos";
-import { formatCurrency, calculateTotalSpent } from "@/lib/utils";
+import { useDespesas } from "@/hooks/use-despesas";
+import { formatCurrency } from "@/lib/utils";
 import { FileText, Download, Calendar, Filter } from "lucide-react";
 
 export default function RelatoriosPage() {
-  const { creditos } = useCreditos();
+  const { creditos, creditosWithCalculations } = useCreditos();
+  const { despesasWithCredits } = useDespesas();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [customReport, setCustomReport] = useState({
@@ -48,7 +50,7 @@ export default function RelatoriosPage() {
       titulo: "Relatório de Prestação de Contas",
       descricao: "Status da prestação de contas por crédito",
       ultimaAtualizacao: "08/07/2025",
-      status: "Processando"
+      status: "Disponível"
     }
   ];
 
@@ -134,33 +136,34 @@ export default function RelatoriosPage() {
   };
 
   const generateBudgetExecutionReport = (startDate?: string, endDate?: string) => {
-    const creditosList = Object.values(creditos);
-    
-    return creditosList.map(credito => ({
+    return creditosWithCalculations.map(credito => ({
       'Código do Crédito': credito.creditoCodigo,
       'Ano': credito.anoExercicio,
       'Ação/Eixo': credito.acaoEixo,
+      'Origem': credito.origem.tipo === 'Original' ? 'Ano vigente' : 'Restos',
       'Valor Global': formatCurrency(credito.valorGlobal),
-      'Valor Gasto': formatCurrency(calculateTotalSpent(credito.despesas || {})),
-      'Saldo Atual': formatCurrency(credito.saldoAtual),
-      'Percentual Executado': `${((calculateTotalSpent(credito.despesas || {}) / credito.valorGlobal) * 100).toFixed(2)}%`
+      'Valor Empenhado': formatCurrency(credito.valorEmpenhado),
+      'Valor Pago': formatCurrency(credito.valorPago),
+      'Saldo Disponível': formatCurrency(credito.saldoDisponivel),
+      'Percentual Executado': `${((credito.valorPago / credito.valorGlobal) * 100).toFixed(2)}%`
     }));
   };
 
   const generateCreditsByActionReport = () => {
-    const creditosList = Object.values(creditos);
-    const groupedByAction = creditosList.reduce((acc, credito) => {
+    const groupedByAction = creditosWithCalculations.reduce((acc, credito) => {
       const action = credito.acaoEixo;
       if (!acc[action]) {
         acc[action] = {
           totalCreditos: 0,
           valorTotal: 0,
-          valorGasto: 0
+          valorEmpenhado: 0,
+          valorPago: 0
         };
       }
       acc[action].totalCreditos++;
       acc[action].valorTotal += credito.valorGlobal;
-      acc[action].valorGasto += calculateTotalSpent(credito.despesas || {});
+      acc[action].valorEmpenhado += credito.valorEmpenhado;
+      acc[action].valorPago += credito.valorPago;
       return acc;
     }, {} as Record<string, any>);
     
@@ -168,41 +171,35 @@ export default function RelatoriosPage() {
       'Ação/Eixo': action,
       'Total de Créditos': data.totalCreditos,
       'Valor Total': formatCurrency(data.valorTotal),
-      'Valor Gasto': formatCurrency(data.valorGasto),
-      'Saldo Disponível': formatCurrency(data.valorTotal - data.valorGasto)
+      'Valor Empenhado': formatCurrency(data.valorEmpenhado),
+      'Valor Pago': formatCurrency(data.valorPago),
+      'Saldo Disponível': formatCurrency(data.valorTotal - data.valorPago - data.valorEmpenhado)
     }));
   };
 
   const generateLiquidatedExpensesReport = () => {
-    const allExpenses: any[] = [];
-    
-    Object.values(creditos).forEach(credito => {
-      Object.values(credito.despesas || {}).forEach(despesa => {
-        if (despesa.status === 'Liquidado' || despesa.status === 'Pago') {
-          allExpenses.push({
-            'Código do Crédito': credito.creditoCodigo,
-            'Processo SEI': despesa.processoSEI,
-            'Objeto': despesa.objeto,
-            'Valor Total': formatCurrency(despesa.valorTotal),
-            'Status': despesa.status,
-            'Data de Empenho': despesa.dataEmpenho || '-',
-            'Nota de Empenho': despesa.notaEmpenho || '-',
-            'Data de Pagamento': despesa.dataPagamento || '-'
-          });
-        }
-      });
-    });
-    
-    return allExpenses;
+    return despesasWithCredits
+      .filter(despesa => despesa.status === 'Liquidado' || despesa.status === 'Pago')
+      .map(despesa => ({
+        'Créditos Associados': despesa.creditosAssociados.map(c => c.creditoCodigo).join(', '),
+        'Processo SEI': despesa.processoSEI,
+        'Objeto': despesa.objeto,
+        'Valor Total': formatCurrency(despesa.valorTotal),
+        'Status': despesa.status,
+        'Data de Empenho': despesa.dataEmpenho || '-',
+        'Nota de Empenho': despesa.notaEmpenho || '-',
+        'Data de Pagamento': despesa.dataPagamento || '-',
+        'Fontes de Financiamento': despesa.fontesDeRecurso.length > 1 ? 'Múltiplas' : 'Única'
+      }));
   };
 
   const generateAccountabilityReport = (startDate?: string, endDate?: string) => {
-    const creditosList = Object.values(creditos);
-    
-    return creditosList.map(credito => {
-      const despesas = Object.values(credito.despesas || {});
-      const totalDespesas = despesas.length;
-      const despesasComPrestacao = despesas.filter(d => d.dataPrestacaoContas).length;
+    return creditosWithCalculations.map(credito => {
+      const despesasDoCredito = despesasWithCredits.filter(d => 
+        d.fontesDeRecurso.some(fonte => fonte.creditoId === credito.id)
+      );
+      const totalDespesas = despesasDoCredito.length;
+      const despesasComPrestacao = despesasDoCredito.filter(d => d.dataPrestacaoContas).length;
       
       return {
         'Código do Crédito': credito.creditoCodigo,
@@ -216,25 +213,20 @@ export default function RelatoriosPage() {
   };
 
   const generateExpensesByPeriodReport = (startDate: string, endDate: string) => {
-    const allExpenses: any[] = [];
-    
-    Object.values(creditos).forEach(credito => {
-      Object.values(credito.despesas || {}).forEach(despesa => {
+    return despesasWithCredits
+      .filter(despesa => {
         const expenseDate = despesa.dataEmpenho;
-        if (expenseDate && expenseDate >= startDate && expenseDate <= endDate) {
-          allExpenses.push({
-            'Código do Crédito': credito.creditoCodigo,
-            'Data de Empenho': despesa.dataEmpenho,
-            'Processo SEI': despesa.processoSEI,
-            'Objeto': despesa.objeto,
-            'Valor Total': formatCurrency(despesa.valorTotal),
-            'Status': despesa.status
-          });
-        }
-      });
-    });
-    
-    return allExpenses;
+        return expenseDate && expenseDate >= startDate && expenseDate <= endDate;
+      })
+      .map(despesa => ({
+        'Créditos Associados': despesa.creditosAssociados.map(c => c.creditoCodigo).join(', '),
+        'Data de Empenho': despesa.dataEmpenho,
+        'Processo SEI': despesa.processoSEI,
+        'Objeto': despesa.objeto,
+        'Valor Total': formatCurrency(despesa.valorTotal),
+        'Status': despesa.status,
+        'Financiamento': despesa.fontesDeRecurso.length > 1 ? 'Composto' : 'Único'
+      }));
   };
 
   const downloadCSV = (data: any[], filename: string) => {
@@ -275,178 +267,178 @@ export default function RelatoriosPage() {
         <div className="px-4 py-6 sm:px-0">
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
-          <p className="text-gray-600">Gere e baixe relatórios do sistema</p>
-        </div>
-        <div className="flex space-x-3">
-          <button 
-            onClick={() => setFilters(prev => ({ ...prev, showFilters: !prev.showFilters }))}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <Filter className="w-4 h-4 mr-2" />
-            Filtros
-          </button>
-          <select
-            value={filters.period}
-            onChange={(e) => setFilters(prev => ({ ...prev, period: e.target.value }))}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <option value="all">Todos os períodos</option>
-            <option value="2024">2024</option>
-            <option value="2023">2023</option>
-            <option value="2022">2022</option>
-          </select>
-        </div>
-      </div>
-
-      {message && (
-        <div className={`p-3 rounded-md text-sm ${
-          message.includes('sucesso') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-        }`}>
-          {message}
-        </div>
-      )}
-
-      {filters.showFilters && (
-        <Card className="p-4">
-          <h4 className="font-medium text-gray-900 mb-3">Filtros Avançados</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status do Crédito
-              </label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                <option>Todos</option>
-                <option>Disponível</option>
-                <option>Atenção</option>
-                <option>Crítico</option>
-              </select>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
+                <p className="text-gray-600">Gere e baixe relatórios do sistema</p>
+              </div>
+              <div className="flex space-x-3">
+                <button 
+                  onClick={() => setFilters(prev => ({ ...prev, showFilters: !prev.showFilters }))}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filtros
+                </button>
+                <select
+                  value={filters.period}
+                  onChange={(e) => setFilters(prev => ({ ...prev, period: e.target.value }))}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  <option value="all">Todos os períodos</option>
+                  <option value="2024">2024</option>
+                  <option value="2023">2023</option>
+                  <option value="2022">2022</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Ação/Eixo
-              </label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                <option>Todos</option>
-                <option>VALORIZAÇÃO DOS PROFISSIONAIS</option>
-                <option>MODERNIZAÇÃO DAS UNIDADES</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Valor Mínimo
-              </label>
-              <input 
-                type="number" 
-                placeholder="R$ 0,00"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-            </div>
-          </div>
-        </Card>
-      )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {relatorios.map((relatorio) => (
-          <Card key={relatorio.id} className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileText className="w-6 h-6 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    {relatorio.titulo}
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {relatorio.descricao}
-                  </p>
-                  <div className="flex items-center space-x-4 mt-3 text-sm text-gray-500">
-                    <span>Última atualização: {relatorio.ultimaAtualizacao}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      relatorio.status === 'Disponível' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {relatorio.status}
-                    </span>
+            {message && (
+              <div className={`p-3 rounded-md text-sm ${
+                message.includes('sucesso') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+              }`}>
+                {message}
+              </div>
+            )}
+
+            {filters.showFilters && (
+              <Card className="p-4">
+                <h4 className="font-medium text-gray-900 mb-3">Filtros Avançados</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Status do Crédito
+                    </label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
+                      <option>Todos</option>
+                      <option>Disponível</option>
+                      <option>Atenção</option>
+                      <option>Crítico</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Origem do Crédito
+                    </label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
+                      <option>Todas</option>
+                      <option>Ano vigente</option>
+                      <option>Restos</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Valor Mínimo
+                    </label>
+                    <input 
+                      type="number" 
+                      placeholder="R$ 0,00"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
                   </div>
                 </div>
-              </div>
-              <button 
-                onClick={() => handleDownloadReport(relatorio.id, relatorio.titulo)}
-                className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                  relatorio.status === 'Disponível'
-                    ? 'text-blue-600 bg-blue-100 hover:bg-blue-200'
-                    : 'text-gray-400 bg-gray-100 cursor-not-allowed'
-                }`}
-                disabled={relatorio.status !== 'Disponível' || loading}
-              >
-                <Download className="w-4 h-4 mr-1" />
-                {loading ? 'Gerando...' : 'Baixar'}
-              </button>
-            </div>
-          </Card>
-        ))}
-      </div>
+              </Card>
+            )}
 
-      <Card className="p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
-          Gerar Relatório Personalizado
-        </h3>
-        <form onSubmit={handleGenerateCustomReport} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tipo de Relatório
-              </label>
-              <select 
-                value={customReport.type}
-                onChange={(e) => setCustomReport(prev => ({ ...prev, type: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="execucao">Execução Orçamentária</option>
-                <option value="despesas">Despesas por Período</option>
-                <option value="creditos">Créditos por Status</option>
-                <option value="prestacao">Prestação de Contas</option>
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {relatorios.map((relatorio) => (
+                <Card key={relatorio.id} className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <FileText className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-medium text-gray-900">
+                          {relatorio.titulo}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {relatorio.descricao}
+                        </p>
+                        <div className="flex items-center space-x-4 mt-3 text-sm text-gray-500">
+                          <span>Última atualização: {relatorio.ultimaAtualizacao}</span>
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            relatorio.status === 'Disponível' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {relatorio.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleDownloadReport(relatorio.id, relatorio.titulo)}
+                      className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                        relatorio.status === 'Disponível'
+                          ? 'text-blue-600 bg-blue-100 hover:bg-blue-200'
+                          : 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                      }`}
+                      disabled={relatorio.status !== 'Disponível' || loading}
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      {loading ? 'Gerando...' : 'Baixar'}
+                    </button>
+                  </div>
+                </Card>
+              ))}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Data Início
-              </label>
-              <input 
-                type="date" 
-                value={customReport.startDate}
-                onChange={(e) => setCustomReport(prev => ({ ...prev, startDate: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Data Fim
-              </label>
-              <input 
-                type="date" 
-                value={customReport.endDate}
-                onChange={(e) => setCustomReport(prev => ({ ...prev, endDate: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          <div className="mt-4">
-            <button 
-              type="submit"
-              disabled={loading}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              {loading ? 'Gerando...' : 'Gerar Relatório'}
-            </button>
-          </div>
-        </form>
-          </Card>
+
+            <Card className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Gerar Relatório Personalizado
+              </h3>
+              <form onSubmit={handleGenerateCustomReport} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tipo de Relatório
+                    </label>
+                    <select 
+                      value={customReport.type}
+                      onChange={(e) => setCustomReport(prev => ({ ...prev, type: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="execucao">Execução Orçamentária</option>
+                      <option value="despesas">Despesas por Período</option>
+                      <option value="creditos">Créditos por Status</option>
+                      <option value="prestacao">Prestação de Contas</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Data Início
+                    </label>
+                    <input 
+                      type="date" 
+                      value={customReport.startDate}
+                      onChange={(e) => setCustomReport(prev => ({ ...prev, startDate: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Data Fim
+                    </label>
+                    <input 
+                      type="date" 
+                      value={customReport.endDate}
+                      onChange={(e) => setCustomReport(prev => ({ ...prev, endDate: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <button 
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    {loading ? 'Gerando...' : 'Gerar Relatório'}
+                  </button>
+                </div>
+              </form>
+            </Card>
           </div>
         </div>
       </main>

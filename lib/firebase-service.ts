@@ -542,10 +542,25 @@ export class FirebaseService {
   async searchDespesasByObjeto(searchTerm: string): Promise<Despesa[]> {
     try {
       const despesas = await this.getAllDespesas();
-      return Object.values(despesas).filter(despesa => 
-        despesa.objeto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        despesa.processoSEI.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      return Object.values(despesas).filter(despesa => {
+        const searchLower = searchTerm.toLowerCase();
+        
+        // Busca no objeto e processo SEI
+        if (despesa.objeto.toLowerCase().includes(searchLower) ||
+            despesa.processoSEI.toLowerCase().includes(searchLower)) {
+          return true;
+        }
+        
+        // Busca nas notas de empenho e ordens bancárias das fontes
+        if (despesa.fontesDeRecurso && despesa.fontesDeRecurso.length > 0) {
+          return despesa.fontesDeRecurso.some(fonte => 
+            (fonte.notaEmpenho && fonte.notaEmpenho.toLowerCase().includes(searchLower)) ||
+            (fonte.ordemBancaria && fonte.ordemBancaria.toLowerCase().includes(searchLower))
+          );
+        }
+        
+        return false;
+      });
     } catch (error) {
       throw new FirebaseServiceError('Failed to search expenses', error);
     }

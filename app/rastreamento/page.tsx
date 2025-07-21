@@ -104,7 +104,7 @@ export default function RastreamentoPage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
-                  placeholder="Digite o objeto da despesa, processo SEI ou código do crédito..."
+                  placeholder="Digite objeto, SEI, nota de empenho, ordem bancária ou código do crédito..."
                 />
                 {searching && (
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -114,7 +114,7 @@ export default function RastreamentoPage() {
               </div>
 
               <p className="text-sm text-gray-600 mt-2">
-                Busque por objetos de despesas (ex: &quot;Helicóptero&quot;), processos SEI (ex: &quot;SEI-270031/000119/2024&quot;) ou códigos de créditos (ex: &quot;2024DC00001&quot;)
+                Busque por: objetos (ex: &quot;Helicóptero&quot;), SEI (ex: &quot;SEI-270031/000119/2024&quot;), nota de empenho (ex: &quot;2024NE000123&quot;), ordem bancária (ex: &quot;2024OB000456&quot;) ou códigos de créditos (ex: &quot;2024DC00001&quot;)
               </p>
             </div>
 

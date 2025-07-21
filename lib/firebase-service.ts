@@ -543,7 +543,8 @@ export class FirebaseService {
     try {
       const despesas = await this.getAllDespesas();
       return Object.values(despesas).filter(despesa => 
-        despesa.objeto.toLowerCase().includes(searchTerm.toLowerCase())
+        despesa.objeto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        despesa.processoSEI.toLowerCase().includes(searchTerm.toLowerCase())
       );
     } catch (error) {
       throw new FirebaseServiceError('Failed to search expenses', error);

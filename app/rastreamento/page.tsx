@@ -235,7 +235,7 @@ export default function RastreamentoPage() {
                         </div>
                       </div>
                       <button
-                        onClick={() => router.push(`/creditos/${credito.id}`)}
+                        onClick={() => router.push(`/descentralizacoes/${credito.id}`)}
                         className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-md"
                       >
                         <Eye className="h-4 w-4" />

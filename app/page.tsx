@@ -4,24 +4,26 @@ import { useEffect, useState } from "react";
 import { Navbar } from "@/components/layout/navbar";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { LineChartComponent } from "@/components/charts/line-chart";
-import { PieChartComponent } from "@/components/charts/pie-chart";
+import { BarChartComponent } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate, getStatusColor } from "@/lib/utils";
-import { useCreditos } from "@/hooks/use-creditos";
+import { useDescentralizacoes } from "@/hooks/use-descentralizacoes";
 import { useDespesas } from "@/hooks/use-despesas";
 import { firebaseService } from "@/lib/firebase-service";
-import { FirebaseTest } from "@/components/debug/FirebaseTest";
 import type { DashboardData, DespesaWithCreditos } from "@/types";
 
 export default function DashboardPage() {
-  const { creditosWithCalculations, loading: loadingCreditos, error: errorCreditos } = useCreditos();
+  const { descentralizacoesWithCalculations, loading: loadingCreditos, error: errorCreditos } = useDescentralizacoes();
   const { despesasWithCredits, loading: loadingDespesas } = useDespesas();
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     valorGlobalConsolidado: 0,
     valorEmpenhado: 0,
-    valorLiquidadoPago: 0,
+    valorLiquidado: 0,
+    valorPago: 0,
     saldoDisponivel: 0,
+    percentualEmpenhado: 0,
+    percentualLiquidado: 0,
     totalCreditos: 0,
     chartData: [],
     pieData: [],
@@ -35,7 +37,7 @@ export default function DashboardPage() {
         const data = await firebaseService.getDashboardData(selectedYear);
         
         // Data for line chart (evolution by year)
-        const chartData = creditosWithCalculations
+        const chartData = descentralizacoesWithCalculations
           .filter(c => !selectedYear || c.anoExercicio === selectedYear)
           .map(c => ({
             ano: c.anoExercicio,
@@ -45,7 +47,7 @@ export default function DashboardPage() {
         
         // Data for pie chart (distribution by action/axis)
         const acaoMap = new Map();
-        creditosWithCalculations
+        descentralizacoesWithCalculations
           .filter(c => !selectedYear || c.anoExercicio === selectedYear)
           .forEach(c => {
             // Distribute credit value equally among all eixos
@@ -71,7 +73,7 @@ export default function DashboardPage() {
         // Recent expenses
         const recentDespesas = despesasWithCredits
           .filter(d => !selectedYear || d.creditosAssociados.some(c => 
-            creditosWithCalculations.find(credito => credito.id === c.creditoId)?.anoExercicio === selectedYear
+            descentralizacoesWithCalculations.find(credito => credito.id === c.creditoId)?.anoExercicio === selectedYear
           ))
           .sort((a, b) => {
             // Get latest transaction date from any funding source
@@ -98,12 +100,12 @@ export default function DashboardPage() {
       }
     };
 
-    if (creditosWithCalculations.length > 0) {
+    if (descentralizacoesWithCalculations.length > 0) {
       loadDashboardData();
     }
-  }, [creditosWithCalculations, despesasWithCredits, selectedYear]);
+  }, [descentralizacoesWithCalculations, despesasWithCredits, selectedYear]);
 
-  const years = [...new Set(creditosWithCalculations.map(c => c.anoExercicio))].sort((a, b) => b - a);
+  const years = [...new Set(descentralizacoesWithCalculations.map(c => c.anoExercicio))].sort((a, b) => b - a);
 
   // Loading state
   if (loadingCreditos || loadingDespesas) {
@@ -167,13 +169,15 @@ export default function DashboardPage() {
             </div>
           </div>
           
-          <FirebaseTest />
           
           <SummaryCards
             valorGlobalConsolidado={dashboardData.valorGlobalConsolidado}
             valorEmpenhado={dashboardData.valorEmpenhado}
-            valorLiquidadoPago={dashboardData.valorLiquidadoPago}
+            valorLiquidado={dashboardData.valorLiquidado}
+            valorPago={dashboardData.valorPago}
             saldoDisponivel={dashboardData.saldoDisponivel}
+            percentualEmpenhado={dashboardData.percentualEmpenhado}
+            percentualLiquidado={dashboardData.percentualLiquidado}
             totalCreditos={dashboardData.totalCreditos}
           />
           
@@ -192,7 +196,7 @@ export default function DashboardPage() {
                 <CardTitle>Distribuição por Ação/Eixo</CardTitle>
               </CardHeader>
               <CardContent>
-                <PieChartComponent data={dashboardData.pieData} />
+                <BarChartComponent data={dashboardData.pieData} />
               </CardContent>
             </Card>
           </div>

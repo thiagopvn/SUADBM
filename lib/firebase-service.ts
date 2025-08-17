@@ -67,6 +67,7 @@ export class FirebaseService {
         
         // Calcular valores utilizados nas despesas para este crédito
         let valorEmpenhado = 0;
+        let valorLiquidado = 0;
         let valorPago = 0;
         
         Object.values(despesas).forEach(despesa => {
@@ -75,6 +76,10 @@ export class FirebaseService {
               // Considerar empenho se a fonte tem nota de empenho
               if (fonte.notaEmpenho && fonte.dataEmpenho) {
                 valorEmpenhado += fonte.valorUtilizado;
+              }
+              // Considerar liquidado se tem nota de liquidação e valor liquidado
+              if (fonte.notaLiquidacao && fonte.valorLiquidado) {
+                valorLiquidado += fonte.valorLiquidado;
               }
               // Considerar pago se a fonte tem ordem bancária
               if (fonte.ordemBancaria && fonte.dataPagamento) {
@@ -90,6 +95,7 @@ export class FirebaseService {
           ...credito,
           eixos: credito.eixos || [],
           valorEmpenhado,
+          valorLiquidado,
           valorPago,
           saldoDisponivel
         });
@@ -281,8 +287,11 @@ export class FirebaseService {
   async getDashboardData(anoFiltro?: number): Promise<{
     valorGlobalConsolidado: number;
     valorEmpenhado: number;
-    valorLiquidadoPago: number;
+    valorLiquidado: number;
+    valorPago: number;
     saldoDisponivel: number;
+    percentualEmpenhado: number;
+    percentualLiquidado: number;
     totalCreditos: number;
   }> {
     try {
@@ -291,7 +300,8 @@ export class FirebaseService {
       
       let valorGlobalConsolidado = 0;
       let valorEmpenhado = 0;
-      let valorLiquidadoPago = 0;
+      let valorLiquidado = 0;
+      let valorPago = 0;
       let totalCreditos = 0;
       
       // Filtrar créditos por ano se especificado
@@ -302,30 +312,44 @@ export class FirebaseService {
       totalCreditos = creditosFiltrados.length;
       valorGlobalConsolidado = creditosFiltrados.reduce((total, credito) => total + credito.valorGlobal, 0);
       
-      // Calcular valores das despesas baseado nas transações individuais
+      // IDs dos créditos filtrados para performance
+      const creditosFiltradosIds = new Set(creditosFiltrados.map(c => c.id));
+      
+      // Calcular valores considerando todas as fontes de recurso individualmente
       Object.values(despesas).forEach(despesa => {
         despesa.fontesDeRecurso.forEach(fonte => {
-          const credito = creditosFiltrados.find(c => c.id === fonte.creditoId);
-          if (credito) {
-            // Considerar empenhado se a fonte tem nota de empenho
+          // Só contar se a fonte pertence aos créditos filtrados
+          if (creditosFiltradosIds.has(fonte.creditoId)) {
+            // Empenhado: tem nota de empenho e data
             if (fonte.notaEmpenho && fonte.dataEmpenho) {
               valorEmpenhado += fonte.valorUtilizado;
             }
-            // Considerar pago se a fonte tem ordem bancária
+            
+            // Liquidado: tem nota de liquidação e valor liquidado
+            if (fonte.notaLiquidacao && fonte.valorLiquidado) {
+              valorLiquidado += fonte.valorLiquidado;
+            }
+            
+            // Pago: tem ordem bancária e data de pagamento
             if (fonte.ordemBancaria && fonte.dataPagamento) {
-              valorLiquidadoPago += fonte.valorUtilizado;
+              valorPago += fonte.valorUtilizado;
             }
           }
         });
       });
       
-      const saldoDisponivel = valorGlobalConsolidado - (valorLiquidadoPago + valorEmpenhado);
+      const saldoDisponivel = valorGlobalConsolidado - valorEmpenhado;
+      const percentualEmpenhado = valorGlobalConsolidado > 0 ? (valorEmpenhado / valorGlobalConsolidado) * 100 : 0;
+      const percentualLiquidado = valorEmpenhado > 0 ? (valorLiquidado / valorEmpenhado) * 100 : 0;
       
       return {
         valorGlobalConsolidado,
         valorEmpenhado,
-        valorLiquidadoPago,
+        valorLiquidado,
+        valorPago,
         saldoDisponivel,
+        percentualEmpenhado,
+        percentualLiquidado,
         totalCreditos
       };
     } catch (error) {

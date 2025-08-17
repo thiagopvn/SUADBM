@@ -1,286 +1,359 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/navbar";
 import { Card } from "@/components/ui/card";
-import { useCreditos } from "@/hooks/use-creditos";
+import { useDescentralizacoes } from "@/hooks/use-descentralizacoes";
 import { useDespesas } from "@/hooks/use-despesas";
 import { formatCurrency } from "@/lib/utils";
-import { FileText, Download, Calendar, Filter } from "lucide-react";
+import { Calendar, Filter, FileText, Edit2, X, Download } from "lucide-react";
+import type { DespesaWithCreditos, CreditoWithCalculations, FonteDeRecurso } from "@/types";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, TextRun, HeadingLevel } from "docx";
+import { saveAs } from "file-saver";
+
+interface RelatorioItem {
+  id: string;
+  comprovanteDespesa: string;
+  especificacao: string;
+  quantidade: number;
+  valorUnitario: number;
+  valorTotal: number;
+  destinacaoPosExecucao: string;
+  originalData: {
+    despesa: DespesaWithCreditos;
+    fonte: FonteDeRecurso;
+    credito: CreditoWithCalculations;
+  };
+}
+
+interface FiltroFormData {
+  dataInicio: string;
+  dataFim: string;
+  descentralizacaoCredito: string;
+  naturezaDespesa: 'todos' | 'investimento' | 'custeio';
+  statusFinanceiro: 'empenhado' | 'liquidado';
+}
 
 export default function RelatoriosPage() {
-  const { creditos, creditosWithCalculations } = useCreditos();
+  const { descentralizacoes, descentralizacoesWithCalculations } = useDescentralizacoes();
   const { despesasWithCredits } = useDespesas();
+  
+  const [filtros, setFiltros] = useState<FiltroFormData>({
+    dataInicio: '',
+    dataFim: '',
+    descentralizacaoCredito: '',
+    naturezaDespesa: 'todos',
+    statusFinanceiro: 'empenhado'
+  });
+  
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [customReport, setCustomReport] = useState({
-    type: 'execucao',
-    startDate: '',
-    endDate: ''
-  });
-  const [filters, setFilters] = useState({
-    showFilters: false,
-    period: 'all'
-  });
+  const [showModal, setShowModal] = useState(false);
+  const [relatorioItems, setRelatorioItems] = useState<RelatorioItem[]>([]);
+  const [editingItem, setEditingItem] = useState<string | null>(null);
 
-  const relatorios = [
-    {
-      id: 1,
-      titulo: "Relatório de Execução Orçamentária",
-      descricao: "Demonstrativo da execução orçamentária por período",
-      ultimaAtualizacao: "15/07/2025",
-      status: "Disponível"
-    },
-    {
-      id: 2,
-      titulo: "Relatório de Créditos por Ação/Eixo",
-      descricao: "Agrupamento de créditos por categoria de ação/eixo",
-      ultimaAtualizacao: "12/07/2025",
-      status: "Disponível"
-    },
-    {
-      id: 3,
-      titulo: "Relatório de Despesas Liquidadas",
-      descricao: "Listagem de todas as despesas liquidadas no período",
-      ultimaAtualizacao: "10/07/2025",
-      status: "Disponível"
-    },
-    {
-      id: 4,
-      titulo: "Relatório de Prestação de Contas",
-      descricao: "Status da prestação de contas por crédito",
-      ultimaAtualizacao: "08/07/2025",
-      status: "Disponível"
-    }
-  ];
+  const handleInputChange = (field: keyof FiltroFormData, value: string) => {
+    setFiltros(prev => ({ ...prev, [field]: value }));
+  };
 
-  const handleDownloadReport = async (reportId: number, title: string) => {
+  const isFormValid = () => {
+    return filtros.descentralizacaoCredito !== '';
+  };
+
+  const filtrarDespesas = () => {
     setLoading(true);
-    setMessage('');
-    
     try {
-      // Generate report data based on report type
-      let reportData;
-      
-      switch (reportId) {
-        case 1: // Execução Orçamentária
-          reportData = generateBudgetExecutionReport();
-          break;
-        case 2: // Créditos por Ação/Eixo
-          reportData = generateCreditsByActionReport();
-          break;
-        case 3: // Despesas Liquidadas
-          reportData = generateLiquidatedExpensesReport();
-          break;
-        case 4: // Prestação de Contas
-          reportData = generateAccountabilityReport();
-          break;
-        default:
-          throw new Error('Tipo de relatório não encontrado');
-      }
-      
-      downloadCSV(reportData, `${title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
-      setMessage('Relatório baixado com sucesso!');
-    } catch (error) {
-      setMessage('Erro ao gerar relatório.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerateCustomReport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!customReport.startDate || !customReport.endDate) {
-      setMessage('Por favor, selecione as datas de início e fim.');
-      return;
-    }
-    
-    setLoading(true);
-    setMessage('');
-    
-    try {
-      let reportData;
-      
-      switch (customReport.type) {
-        case 'execucao':
-          reportData = generateBudgetExecutionReport(customReport.startDate, customReport.endDate);
-          break;
-        case 'despesas':
-          reportData = generateExpensesByPeriodReport(customReport.startDate, customReport.endDate);
-          break;
-        case 'creditos':
-          reportData = generateCreditsByActionReport();
-          break;
-        case 'prestacao':
-          reportData = generateAccountabilityReport(customReport.startDate, customReport.endDate);
-          break;
-        default:
-          throw new Error('Tipo de relatório inválido');
-      }
-      
-      const reportTypes = {
-        execucao: 'Execucao_Orcamentaria',
-        despesas: 'Despesas_por_Periodo',
-        creditos: 'Creditos_por_Status',
-        prestacao: 'Prestacao_de_Contas'
-      };
-      
-      downloadCSV(reportData, `${reportTypes[customReport.type as keyof typeof reportTypes]}_${customReport.startDate}_${customReport.endDate}.csv`);
-      setMessage('Relatório personalizado gerado com sucesso!');
-    } catch (error) {
-      setMessage('Erro ao gerar relatório personalizado.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateBudgetExecutionReport = (startDate?: string, endDate?: string) => {
-    return creditosWithCalculations.map(credito => ({
-      'Código do Crédito': credito.creditoCodigo,
-      'Ano': credito.anoExercicio,
-      'Eixos': credito.eixos.join(', '),
-      'Origem': credito.origem?.tipo === 'Ano vigente' ? 'Ano vigente' : 'Anos anteriores',
-      'Valor Global': formatCurrency(credito.valorGlobal),
-      'Valor Empenhado': formatCurrency(credito.valorEmpenhado),
-      'Valor Pago': formatCurrency(credito.valorPago),
-      'Saldo Disponível': formatCurrency(credito.saldoDisponivel),
-      'Percentual Executado': `${((credito.valorPago / credito.valorGlobal) * 100).toFixed(2)}%`
-    }));
-  };
-
-  const generateCreditsByActionReport = () => {
-    const groupedByAction = creditosWithCalculations.reduce((acc, credito) => {
-      // Distribute credit values equally among all eixos
-      const valuePerEixo = {
-        totalCreditos: 1 / credito.eixos.length,
-        valorTotal: credito.valorGlobal / credito.eixos.length,
-        valorEmpenhado: credito.valorEmpenhado / credito.eixos.length,
-        valorPago: credito.valorPago / credito.eixos.length
-      };
-      
-      credito.eixos.forEach(eixo => {
-        if (!acc[eixo]) {
-          acc[eixo] = {
-            totalCreditos: 0,
-            valorTotal: 0,
-            valorEmpenhado: 0,
-            valorPago: 0
-          };
-        }
-        acc[eixo].totalCreditos += valuePerEixo.totalCreditos;
-        acc[eixo].valorTotal += valuePerEixo.valorTotal;
-        acc[eixo].valorEmpenhado += valuePerEixo.valorEmpenhado;
-        acc[eixo].valorPago += valuePerEixo.valorPago;
-      });
-      
-      return acc;
-    }, {} as Record<string, any>);
-    
-    return Object.entries(groupedByAction).map(([action, data]) => ({
-      'Ação/Eixo': action,
-      'Total de Créditos': data.totalCreditos,
-      'Valor Total': formatCurrency(data.valorTotal),
-      'Valor Empenhado': formatCurrency(data.valorEmpenhado),
-      'Valor Pago': formatCurrency(data.valorPago),
-      'Saldo Disponível': formatCurrency(data.valorTotal - data.valorPago - data.valorEmpenhado)
-    }));
-  };
-
-  const generateLiquidatedExpensesReport = () => {
-    return despesasWithCredits
-      .filter(despesa => despesa.status === 'Liquidado' || despesa.status === 'Pago')
-      .map(despesa => ({
-        'Créditos Associados': despesa.creditosAssociados.map(c => c.creditoCodigo).join(', '),
-        'Processo SEI': despesa.processoSEI,
-        'Objeto': despesa.objeto,
-        'Valor Total': formatCurrency(despesa.valorTotal),
-        'Status': despesa.status,
-        'Datas de Empenho': despesa.fontesDeRecurso
-          .filter(f => f.dataEmpenho)
-          .map(f => f.dataEmpenho)
-          .join(', ') || '-',
-        'Notas de Empenho': despesa.fontesDeRecurso
-          .filter(f => f.notaEmpenho)
-          .map(f => f.notaEmpenho)
-          .join(', ') || '-',
-        'Datas de Pagamento': despesa.fontesDeRecurso
-          .filter(f => f.dataPagamento)
-          .map(f => f.dataPagamento)
-          .join(', ') || '-',
-        'Fontes de Financiamento': despesa.fontesDeRecurso.length > 1 ? 'Múltiplas' : 'Única'
-      }));
-  };
-
-  const generateAccountabilityReport = (startDate?: string, endDate?: string) => {
-    return creditosWithCalculations.map(credito => {
-      const despesasDoCredito = despesasWithCredits.filter(d => 
-        d.fontesDeRecurso.some(fonte => fonte.creditoId === credito.id)
+      const creditoSelecionado = descentralizacoesWithCalculations.find(
+        c => c.id === filtros.descentralizacaoCredito
       );
-      const totalDespesas = despesasDoCredito.length;
-      const despesasComPrestacao = despesasDoCredito.filter(d => d.dataPrestacaoContas).length;
       
-      return {
-        'Código do Crédito': credito.creditoCodigo,
-        'Eixos': credito.eixos.join(', '),
-        'Total de Despesas': totalDespesas,
-        'Despesas com Prestação': despesasComPrestacao,
-        'Percentual de Compliance': totalDespesas > 0 ? `${((despesasComPrestacao / totalDespesas) * 100).toFixed(2)}%` : '0%',
-        'Status': despesasComPrestacao === totalDespesas ? 'Completo' : 'Pendente'
-      };
+      if (!creditoSelecionado) {
+        alert('Descentralização de crédito não encontrada');
+        return;
+      }
+
+      let despesasFiltradas = despesasWithCredits.filter(despesa => {
+        // Verificar se a despesa tem fonte de recurso vinculada ao crédito selecionado
+        const temFonteDoCredito = despesa.fontesDeRecurso.some(fonte => 
+          fonte.creditoId === filtros.descentralizacaoCredito
+        );
+        
+        if (!temFonteDoCredito) return false;
+
+        // Filtrar por natureza da despesa baseado na própria despesa
+        if (filtros.naturezaDespesa === 'investimento' && !despesa.natureza?.startsWith('I')) {
+          return false;
+        }
+        if (filtros.naturezaDespesa === 'custeio' && !despesa.natureza?.startsWith('C')) {
+          return false;
+        }
+
+        // Filtrar por status financeiro
+        if (filtros.statusFinanceiro === 'empenhado' && despesa.status === 'Planejado') {
+          return false;
+        }
+        if (filtros.statusFinanceiro === 'liquidado' && 
+            !['Liquidado', 'Pago'].includes(despesa.status)) {
+          return false;
+        }
+
+        // Filtrar por período (se especificado)
+        if (filtros.dataInicio && filtros.dataFim) {
+          const temDataNoPeriodo = despesa.fontesDeRecurso.some(fonte => {
+            const dataReferencia = filtros.statusFinanceiro === 'empenhado' 
+              ? fonte.dataEmpenho 
+              : fonte.dataPagamento;
+            
+            return dataReferencia && 
+              dataReferencia >= filtros.dataInicio && 
+              dataReferencia <= filtros.dataFim;
+          });
+          
+          if (!temDataNoPeriodo) return false;
+        }
+
+        return true;
+      });
+
+      // Transformar em itens do relatório
+      const items: RelatorioItem[] = [];
+      
+      despesasFiltradas.forEach(despesa => {
+        despesa.fontesDeRecurso.forEach(fonte => {
+          if (fonte.creditoId === filtros.descentralizacaoCredito) {
+            const credito = descentralizacoesWithCalculations.find(c => c.id === fonte.creditoId)!;
+            
+            items.push({
+              id: `${despesa.id}-${fonte.id}`,
+              comprovanteDespesa: despesa.processoSEI,
+              especificacao: despesa.objeto,
+              quantidade: fonte.quantidade || 1,
+              valorUnitario: fonte.valorUnitario || fonte.valorUtilizado,
+              valorTotal: fonte.valorUtilizado,
+              destinacaoPosExecucao: 'Executante',
+              originalData: { despesa, fonte, credito }
+            });
+          }
+        });
+      });
+
+      setRelatorioItems(items);
+      setShowModal(true);
+    } catch (error) {
+      console.error('Erro ao filtrar despesas:', error);
+      alert('Erro ao filtrar despesas');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditItem = (itemId: string, field: string, value: string) => {
+    setRelatorioItems(prev => prev.map(item => 
+      item.id === itemId 
+        ? { ...item, [field]: value }
+        : item
+    ));
+  };
+
+  const calcularSubtotal = () => {
+    return relatorioItems.reduce((total, item) => total + item.valorTotal, 0);
+  };
+
+  const gerarDocumentoWord = () => {
+    const creditoSelecionado = descentralizacoesWithCalculations.find(
+      c => c.id === filtros.descentralizacaoCredito
+    );
+    
+    const subtotal = calcularSubtotal();
+
+    // Criar linhas da tabela
+    const tableRows = [
+      // Cabeçalho
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph({ text: "COMPROVANTE DE DESPESA", alignment: AlignmentType.CENTER })] }),
+          new TableCell({ children: [new Paragraph({ text: "ESPECIFICAÇÃO", alignment: AlignmentType.CENTER })] }),
+          new TableCell({ children: [new Paragraph({ text: "QUANTIDADE", alignment: AlignmentType.CENTER })] }),
+          new TableCell({ children: [new Paragraph({ text: "VALOR UNITÁRIO", alignment: AlignmentType.CENTER })] }),
+          new TableCell({ children: [new Paragraph({ text: "VALOR TOTAL", alignment: AlignmentType.CENTER })] }),
+          new TableCell({ children: [new Paragraph({ text: "DESTINAÇÃO PÓS EXECUÇÃO", alignment: AlignmentType.CENTER })] }),
+        ]
+      }),
+      // Dados
+      ...relatorioItems.map(item => new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph({ text: item.comprovanteDespesa, alignment: AlignmentType.CENTER })] }),
+          new TableCell({ children: [new Paragraph({ text: item.especificacao, alignment: AlignmentType.LEFT })] }),
+          new TableCell({ children: [new Paragraph({ text: item.quantidade.toString(), alignment: AlignmentType.CENTER })] }),
+          new TableCell({ children: [new Paragraph({ text: formatCurrency(item.valorUnitario), alignment: AlignmentType.RIGHT })] }),
+          new TableCell({ children: [new Paragraph({ text: formatCurrency(item.valorTotal), alignment: AlignmentType.RIGHT })] }),
+          new TableCell({ children: [new Paragraph({ text: item.destinacaoPosExecucao, alignment: AlignmentType.CENTER })] }),
+        ]
+      })),
+      // Subtotal
+      new TableRow({
+        children: [
+          new TableCell({ 
+            children: [new Paragraph({ 
+              children: [new TextRun({ text: "SUBTOTAL OU TOTAL", bold: true })], 
+              alignment: AlignmentType.CENTER 
+            })],
+            columnSpan: 4
+          }),
+          new TableCell({ children: [new Paragraph({ 
+            children: [new TextRun({ text: formatCurrency(subtotal), bold: true })], 
+            alignment: AlignmentType.RIGHT 
+          })] }),
+          new TableCell({ children: [new Paragraph({ text: "", alignment: AlignmentType.CENTER })] }),
+        ]
+      })
+    ];
+
+    return new Document({
+      sections: [{
+        properties: {},
+        children: [
+          // Cabeçalho
+          new Paragraph({
+            text: "🇧🇷",
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            text: "GOVERNO DO ESTADO DO RIO DE JANEIRO",
+            alignment: AlignmentType.CENTER,
+            heading: HeadingLevel.HEADING_1,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "SECRETARIA DE ESTADO DE DEFESA CIVIL",
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "CORPO DE BOMBEIROS MILITAR DO ESTADO DO RIO DE JANEIRO",
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            text: "PRESTAÇÃO DE CONTAS DE CONVÊNIO",
+            alignment: AlignmentType.CENTER,
+            heading: HeadingLevel.HEADING_1,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "RELATÓRIO DE EXECUÇÃO FÍSICO-FINANCEIRA",
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 400 }
+          }),
+
+          // Informações do crédito
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Descentralização de Crédito: ", bold: true }),
+              new TextRun({ text: creditoSelecionado?.creditoCodigo || '' })
+            ],
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Naturezas das Despesas: ", bold: true }),
+              new TextRun({ text: relatorioItems.length > 0 ? [...new Set(relatorioItems.map(item => item.originalData.despesa.natureza))].join(', ') : 'N/A' })
+            ],
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Período: ", bold: true }),
+              new TextRun({ text: filtros.dataInicio ? `${filtros.dataInicio} a ${filtros.dataFim}` : 'Todos os períodos' })
+            ],
+            spacing: { after: 400 }
+          }),
+
+          // Tabela
+          new Table({
+            width: {
+              size: 100,
+              type: WidthType.PERCENTAGE,
+            },
+            rows: tableRows,
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+              bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+              left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+              right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+              insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+              insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+            }
+          }),
+
+          // Rodapé
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Local e Data: ", bold: true }),
+              new TextRun({ text: `Rio de Janeiro, ${new Date().toLocaleDateString('pt-BR')}` })
+            ],
+            spacing: { before: 800, after: 1200 }
+          }),
+
+          // Assinaturas
+          new Paragraph({
+            text: "",
+            spacing: { after: 800 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "________________________________                    ________________________________" })
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "ALEXANDRE PADILLA", bold: true }),
+              new TextRun({ text: "                                                CHARBIO MARCHETT", bold: true })
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Coordenador Geral                                                    Diretor Técnico",
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "SUAD CBMERJ                                                         SUAD CBMERJ",
+            alignment: AlignmentType.CENTER
+          })
+        ]
+      }]
     });
   };
 
-  const generateExpensesByPeriodReport = (startDate: string, endDate: string) => {
-    return despesasWithCredits
-      .filter(despesa => {
-        // Check if any funding source has an empenho date within the range
-        return despesa.fontesDeRecurso.some(fonte => 
-          fonte.dataEmpenho && fonte.dataEmpenho >= startDate && fonte.dataEmpenho <= endDate
-        );
-      })
-      .map(despesa => ({
-        'Créditos Associados': despesa.creditosAssociados.map(c => c.creditoCodigo).join(', '),
-        'Datas de Empenho': despesa.fontesDeRecurso
-          .filter(f => f.dataEmpenho)
-          .map(f => f.dataEmpenho)
-          .join(', '),
-        'Processo SEI': despesa.processoSEI,
-        'Objeto': despesa.objeto,
-        'Valor Total': formatCurrency(despesa.valorTotal),
-        'Status': despesa.status,
-        'Financiamento': despesa.fontesDeRecurso.length > 1 ? 'Composto' : 'Único'
-      }));
-  };
+  const exportarParaWord = async () => {
+    try {
+      setLoading(true);
+      const document = gerarDocumentoWord();
+      
+      // Gerar o arquivo DOCX
+      const buffer = await Packer.toBuffer(document);
 
-  const downloadCSV = (data: any[], filename: string) => {
-    if (data.length === 0) {
-      throw new Error('Nenhum dado encontrado para o relatório');
+      // Fazer download do arquivo
+      const creditoSelecionado = descentralizacoesWithCalculations.find(
+        c => c.id === filtros.descentralizacaoCredito
+      );
+      const filename = `Relatorio_Prestacao_Contas_${creditoSelecionado?.creditoCodigo?.replace(/[^a-zA-Z0-9]/g, '_') || 'DC'}_${new Date().toISOString().split('T')[0]}.docx`;
+      
+      saveAs(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }), filename);
+      
+      setShowModal(false);
+      alert('Relatório exportado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar relatório:', error);
+      alert('Erro ao exportar relatório para Word');
+    } finally {
+      setLoading(false);
     }
-    
-    const headers = Object.keys(data[0]);
-    const csvContent = [
-      headers.join(','),
-      ...data.map(row => 
-        headers.map(header => {
-          const value = row[header];
-          // Escape commas and quotes in CSV
-          return typeof value === 'string' && (value.includes(',') || value.includes('"')) 
-            ? `"${value.replace(/"/g, '""')}"` 
-            : value;
-        }).join(',')
-      )
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -290,182 +363,292 @@ export default function RelatoriosPage() {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
-                <p className="text-gray-600">Gere e baixe relatórios do sistema</p>
-              </div>
-              <div className="flex space-x-3">
-                <button 
-                  onClick={() => setFilters(prev => ({ ...prev, showFilters: !prev.showFilters }))}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filtros
-                </button>
-                <select
-                  value={filters.period}
-                  onChange={(e) => setFilters(prev => ({ ...prev, period: e.target.value }))}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <option value="all">Todos os períodos</option>
-                  <option value="2024">2024</option>
-                  <option value="2023">2023</option>
-                  <option value="2022">2022</option>
-                </select>
-              </div>
+            {/* Cabeçalho */}
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Gerador de Relatório de Prestação de Contas
+              </h1>
+              <p className="text-gray-600">
+                Filtre despesas, pré-visualize e exporte para Word
+              </p>
             </div>
 
-            {message && (
-              <div className={`p-3 rounded-md text-sm ${
-                message.includes('sucesso') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-              }`}>
-                {message}
-              </div>
-            )}
-
-            {filters.showFilters && (
-              <Card className="p-4">
-                <h4 className="font-medium text-gray-900 mb-3">Filtros Avançados</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Status do Crédito
-                    </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                      <option>Todos</option>
-                      <option>Disponível</option>
-                      <option>Atenção</option>
-                      <option>Crítico</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Origem do Crédito
-                    </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                      <option>Todas</option>
-                      <option>Ano vigente</option>
-                      <option>Anos anteriores</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Valor Mínimo
-                    </label>
-                    <input 
-                      type="number" 
-                      placeholder="R$ 0,00"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {relatorios.map((relatorio) => (
-                <Card key={relatorio.id} className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <FileText className="w-6 h-6 text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-medium text-gray-900">
-                          {relatorio.titulo}
-                        </h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {relatorio.descricao}
-                        </p>
-                        <div className="flex items-center space-x-4 mt-3 text-sm text-gray-500">
-                          <span>Última atualização: {relatorio.ultimaAtualizacao}</span>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            relatorio.status === 'Disponível' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {relatorio.status}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => handleDownloadReport(relatorio.id, relatorio.titulo)}
-                      className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                        relatorio.status === 'Disponível'
-                          ? 'text-blue-600 bg-blue-100 hover:bg-blue-200'
-                          : 'text-gray-400 bg-gray-100 cursor-not-allowed'
-                      }`}
-                      disabled={relatorio.status !== 'Disponível' || loading}
-                    >
-                      <Download className="w-4 h-4 mr-1" />
-                      {loading ? 'Gerando...' : 'Baixar'}
-                    </button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-
+            {/* Painel de Filtros */}
             <Card className="p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Gerar Relatório Personalizado
-              </h3>
-              <form onSubmit={handleGenerateCustomReport} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <Filter className="w-5 h-5 mr-2" />
+                Filtros do Relatório
+              </h2>
+              
+              <div className="space-y-4">
+                {/* Primeira linha: Período */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tipo de Relatório
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Data de Início (Opcional)
                     </label>
-                    <select 
-                      value={customReport.type}
-                      onChange={(e) => setCustomReport(prev => ({ ...prev, type: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="execucao">Execução Orçamentária</option>
-                      <option value="despesas">Despesas por Período</option>
-                      <option value="creditos">Créditos por Status</option>
-                      <option value="prestacao">Prestação de Contas</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Data Início
-                    </label>
-                    <input 
-                      type="date" 
-                      value={customReport.startDate}
-                      onChange={(e) => setCustomReport(prev => ({ ...prev, startDate: e.target.value }))}
+                    <input
+                      type="date"
+                      value={filtros.dataInicio}
+                      onChange={(e) => handleInputChange('dataInicio', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Data Fim
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Data de Fim (Opcional)
                     </label>
-                    <input 
-                      type="date" 
-                      value={customReport.endDate}
-                      onChange={(e) => setCustomReport(prev => ({ ...prev, endDate: e.target.value }))}
+                    <input
+                      type="date"
+                      value={filtros.dataFim}
+                      onChange={(e) => handleInputChange('dataFim', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>
-                <div className="mt-4">
-                  <button 
-                    type="submit"
-                    disabled={loading}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+
+                {/* Segunda linha: DC */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Descentralização de Crédito (DC) *
+                  </label>
+                  <select
+                    value={filtros.descentralizacaoCredito}
+                    onChange={(e) => handleInputChange('descentralizacaoCredito', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <FileText className="w-4 h-4 mr-2" />
-                    {loading ? 'Gerando...' : 'Gerar Relatório'}
-                  </button>
+                    <option value="">Selecione uma descentralização</option>
+                    {descentralizacoesWithCalculations
+                      .filter(credito => credito && credito.id && credito.creditoCodigo)
+                      .map(credito => (
+                      <option key={credito.id} value={credito.id}>
+                        {credito.anoExercicio} - {credito.creditoCodigo} - {formatCurrency(credito.valorGlobal || 0)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </form>
+
+                {/* Terceira linha: Natureza e Status */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Natureza da Despesa
+                    </label>
+                    <div className="space-y-2">
+                      {[
+                        { value: 'todos', label: 'Todos' },
+                        { value: 'investimento', label: 'Investimento (Naturezas que começam com I)' },
+                        { value: 'custeio', label: 'Custeio (Naturezas que começam com C)' }
+                      ].map(option => (
+                        <label key={option.value} className="flex items-center">
+                          <input
+                            type="radio"
+                            name="naturezaDespesa"
+                            value={option.value}
+                            checked={filtros.naturezaDespesa === option.value}
+                            onChange={(e) => handleInputChange('naturezaDespesa', e.target.value as any)}
+                            className="mr-2"
+                          />
+                          {option.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Status Financeiro
+                    </label>
+                    <div className="space-y-2">
+                      {[
+                        { value: 'empenhado', label: 'Empenhado' },
+                        { value: 'liquidado', label: 'Liquidado' }
+                      ].map(option => (
+                        <label key={option.value} className="flex items-center">
+                          <input
+                            type="radio"
+                            name="statusFinanceiro"
+                            value={option.value}
+                            checked={filtros.statusFinanceiro === option.value}
+                            onChange={(e) => handleInputChange('statusFinanceiro', e.target.value as any)}
+                            className="mr-2"
+                          />
+                          {option.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botão de Ação */}
+              <div className="mt-6">
+                <button
+                  onClick={filtrarDespesas}
+                  disabled={!isFormValid() || loading}
+                  className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FileText className="w-5 h-5 mr-2" />
+                  {loading ? 'Gerando...' : 'Gerar Relatório'}
+                </button>
+              </div>
             </Card>
           </div>
         </div>
       </main>
+
+      {/* Modal de Pré-visualização */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-7xl h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              Pré-visualização do Relatório de Prestação de Contas
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto">
+            {/* Cabeçalho do Documento */}
+            <div className="text-center mb-6 p-4 border-b">
+              <div className="text-4xl mb-2">🇧🇷</div>
+              <h1 className="text-lg font-bold">GOVERNO DO ESTADO DO RIO DE JANEIRO</h1>
+              <h2 className="text-base">SECRETARIA DE ESTADO DE DEFESA CIVIL</h2>
+              <h2 className="text-base">CORPO DE BOMBEIROS MILITAR DO ESTADO DO RIO DE JANEIRO</h2>
+              <h1 className="text-lg font-bold mt-4">PRESTAÇÃO DE CONTAS DE CONVÊNIO</h1>
+              <h2 className="text-base">RELATÓRIO DE EXECUÇÃO FÍSICO-FINANCEIRA</h2>
+            </div>
+
+            {/* Informações do Crédito */}
+            <div className="mb-4 text-sm">
+              {(() => {
+                const creditoSelecionado = descentralizacoesWithCalculations.find(
+                  c => c.id === filtros.descentralizacaoCredito
+                );
+                return (
+                  <>
+                    <p><strong>Descentralização de Crédito:</strong> {creditoSelecionado?.creditoCodigo || ''}</p>
+                    <p><strong>Naturezas das Despesas:</strong> {relatorioItems.length > 0 ? [...new Set(relatorioItems.map(item => item.originalData.despesa.natureza))].join(', ') : 'N/A'}</p>
+                    <p><strong>Período:</strong> {filtros.dataInicio ? `${filtros.dataInicio} a ${filtros.dataFim}` : 'Todos os períodos'}</p>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Tabela Editável */}
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-3 py-2 border text-center font-medium">COMPROVANTE DE DESPESA</th>
+                    <th className="px-3 py-2 border text-center font-medium">ESPECIFICAÇÃO</th>
+                    <th className="px-3 py-2 border text-center font-medium">QUANTIDADE</th>
+                    <th className="px-3 py-2 border text-center font-medium">VALOR UNITÁRIO</th>
+                    <th className="px-3 py-2 border text-center font-medium">VALOR TOTAL</th>
+                    <th className="px-3 py-2 border text-center font-medium">DESTINAÇÃO PÓS EXECUÇÃO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {relatorioItems.map((item) => (
+                    <tr key={item.id}>
+                      <td className="px-3 py-2 border text-center">
+                        <input
+                          type="text"
+                          value={item.comprovanteDespesa}
+                          onChange={(e) => handleEditItem(item.id, 'comprovanteDespesa', e.target.value)}
+                          className="w-full text-center bg-transparent border-none focus:ring-1 focus:ring-blue-500 rounded"
+                        />
+                      </td>
+                      <td className="px-3 py-2 border">
+                        {item.especificacao}
+                      </td>
+                      <td className="px-3 py-2 border text-center">
+                        {item.quantidade}
+                      </td>
+                      <td className="px-3 py-2 border text-right">
+                        {formatCurrency(item.valorUnitario)}
+                      </td>
+                      <td className="px-3 py-2 border text-right">
+                        {formatCurrency(item.valorTotal)}
+                      </td>
+                      <td className="px-3 py-2 border text-center">
+                        <select
+                          value={item.destinacaoPosExecucao}
+                          onChange={(e) => handleEditItem(item.id, 'destinacaoPosExecucao', e.target.value)}
+                          className="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-500 rounded"
+                        >
+                          <option value="Executante">Executante</option>
+                          <option value="Concedente">Concedente</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="bg-gray-50 font-bold">
+                    <td colSpan={4} className="px-3 py-2 border text-center">
+                      SUBTOTAL OU TOTAL
+                    </td>
+                    <td className="px-3 py-2 border text-right">
+                      {formatCurrency(calcularSubtotal())}
+                    </td>
+                    <td className="px-3 py-2 border"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Rodapé do Documento */}
+            <div className="mt-8 text-sm">
+              <p><strong>Local e Data:</strong> Rio de Janeiro, {new Date().toLocaleDateString('pt-BR')}</p>
+              
+              <div className="flex justify-between mt-12">
+                <div className="text-center">
+                  <div className="border-b border-black w-48 mb-2 pb-8"></div>
+                  <p className="font-bold">ALEXANDRE PADILLA</p>
+                  <p>Coordenador Geral</p>
+                  <p>SUAD CBMERJ</p>
+                </div>
+                
+                <div className="text-center">
+                  <div className="border-b border-black w-48 mb-2 pb-8"></div>
+                  <p className="font-bold">CHARBIO MARCHETT</p>
+                  <p>Diretor Técnico</p>
+                  <p>SUAD CBMERJ</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Rodapé do Modal */}
+          <div className="flex justify-between items-center pt-4 border-t bg-gray-50 px-6 py-4">
+            <div>
+              <p className="text-sm text-gray-600">
+                <strong>Subtotal:</strong> {formatCurrency(calcularSubtotal())}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              >
+                Fechar
+              </button>
+              <button
+                onClick={exportarParaWord}
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {loading ? 'Exportando...' : 'Salvar e Exportar para Word'}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

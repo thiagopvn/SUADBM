@@ -23,7 +23,6 @@ export function CreditoForm({
     creditoCodigo: initialData?.creditoCodigo || '',
     anoExercicio: initialData?.anoExercicio || new Date().getFullYear(),
     valorGlobal: initialData?.valorGlobal || 0,
-    natureza: initialData?.natureza || '',
     dataLancamento: initialData?.dataLancamento || new Date().toISOString().split('T')[0],
   });
 
@@ -38,11 +37,11 @@ export function CreditoForm({
   );
   
   const [origemOriginal, setOrigemOriginal] = useState<string>(
-    initialData?.origem?.tipo === 'Ano vigente' ? initialData.origem.descricao : 'Descentralização de crédito original para o ano vigente vindo de Brasília'
+    initialData?.origem?.tipo === 'Ano vigente' && initialData.origem.descricao ? initialData.origem.descricao : 'Descentralização de crédito original para o ano vigente vindo de Brasília'
   );
   
   const [creditosAnterioresSelecionados, setCreditosAnterioresSelecionados] = useState<string[]>(
-    initialData?.origem?.tipo === 'Anos anteriores' ? initialData.origem.creditosAnteriores : []
+    initialData?.origem?.tipo === 'Anos anteriores' && initialData.origem.creditosAnteriores ? initialData.origem.creditosAnteriores : []
   );
 
   const [loading, setLoading] = useState(false);
@@ -59,17 +58,17 @@ export function CreditoForm({
   ];
 
   const adicionarCreditoAnterior = () => {
-    setCreditosAnterioresSelecionados([...creditosAnterioresSelecionados, '']);
+    setCreditosAnterioresSelecionados([...(creditosAnterioresSelecionados || []), '']);
   };
 
   const removerCreditoAnterior = (index: number) => {
     setCreditosAnterioresSelecionados(
-      creditosAnterioresSelecionados.filter((_, i) => i !== index)
+      (creditosAnterioresSelecionados || []).filter((_, i) => i !== index)
     );
   };
 
   const atualizarCreditoAnterior = (index: number, creditoId: string) => {
-    const novosCreditos = [...creditosAnterioresSelecionados];
+    const novosCreditos = [...(creditosAnterioresSelecionados || [])];
     novosCreditos[index] = creditoId;
     setCreditosAnterioresSelecionados(novosCreditos);
   };
@@ -78,7 +77,7 @@ export function CreditoForm({
     const newErrors: Record<string, string> = {};
 
     if (!formData.creditoCodigo.trim()) {
-      newErrors.creditoCodigo = 'Código do crédito é obrigatório';
+      newErrors.creditoCodigo = 'Código da descentralização é obrigatório';
     }
 
     if (formData.anoExercicio < 2000 || formData.anoExercicio > 2100) {
@@ -89,13 +88,10 @@ export function CreditoForm({
       newErrors.valorGlobal = 'Valor global deve ser maior que zero';
     }
 
-    if (eixosSelecionados.length === 0) {
+    if ((eixosSelecionados || []).length === 0) {
       newErrors.eixos = 'Selecione pelo menos um eixo';
     }
 
-    if (!formData.natureza.trim()) {
-      newErrors.natureza = 'Natureza é obrigatória';
-    }
 
     if (!formData.dataLancamento) {
       newErrors.dataLancamento = 'Data de lançamento é obrigatória';
@@ -107,8 +103,8 @@ export function CreditoForm({
         newErrors.origemOriginal = 'Descrição da origem é obrigatória';
       }
     } else if (tipoOrigemSelecionado === 'Anos anteriores') {
-      if (creditosAnterioresSelecionados.length === 0 || 
-          creditosAnterioresSelecionados.some(id => !id.trim())) {
+      if ((creditosAnterioresSelecionados || []).length === 0 || 
+          (creditosAnterioresSelecionados || []).some(id => !id.trim())) {
         newErrors.creditosAnteriores = 'Selecione pelo menos um crédito anterior válido';
       }
     }
@@ -130,11 +126,11 @@ export function CreditoForm({
       // Construir objeto origem
       const origem: OrigemCredito = tipoOrigemSelecionado === 'Ano vigente' 
         ? { tipo: 'Ano vigente', descricao: origemOriginal }
-        : { tipo: 'Anos anteriores', creditosAnteriores: creditosAnterioresSelecionados.filter(id => id.trim()) };
+        : { tipo: 'Anos anteriores', creditosAnteriores: (creditosAnterioresSelecionados || []).filter(id => id.trim()) };
 
       const creditoData: Omit<Credito, 'id'> = {
         ...formData,
-        eixos: eixosSelecionados,
+        eixos: eixosSelecionados || [],
         origem,
         dataLancamento: formData.dataLancamento,
       };
@@ -159,7 +155,7 @@ export function CreditoForm({
       <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-900">
-            {isEditing ? 'Editar Crédito' : 'Novo Crédito'}
+            {isEditing ? 'Editar Descentralização de Crédito' : 'Nova Descentralização de Crédito'}
           </h2>
           <button
             onClick={onCancel}
@@ -176,7 +172,7 @@ export function CreditoForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Código do Crédito *
+                  Código da Descentralização (DC) *
                 </label>
                 <input
                   type="text"
@@ -213,7 +209,7 @@ export function CreditoForm({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Valor Global (R$) *
+                  Valor Total da DC (R$) *
                 </label>
                 <input
                   type="number"
@@ -261,12 +257,12 @@ export function CreditoForm({
                   <label key={eixo} className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={eixosSelecionados.includes(eixo)}
+                      checked={(eixosSelecionados || []).includes(eixo)}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setEixosSelecionados([...eixosSelecionados, eixo]);
+                          setEixosSelecionados([...(eixosSelecionados || []), eixo]);
                         } else {
-                          setEixosSelecionados(eixosSelecionados.filter(e => e !== eixo));
+                          setEixosSelecionados((eixosSelecionados || []).filter(e => e !== eixo));
                         }
                         if (errors.eixos) {
                           setErrors(prev => ({ ...prev, eixos: '' }));
@@ -281,11 +277,11 @@ export function CreditoForm({
               {errors.eixos && (
                 <p className="text-red-500 text-sm mt-1">{errors.eixos}</p>
               )}
-              {eixosSelecionados.length > 0 && (
+              {(eixosSelecionados || []).length > 0 && (
                 <div className="mt-2">
                   <p className="text-sm text-gray-600">Eixos selecionados:</p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {eixosSelecionados.map(eixo => (
+                    {(eixosSelecionados || []).map(eixo => (
                       <span 
                         key={eixo} 
                         className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
@@ -294,7 +290,7 @@ export function CreditoForm({
                         <button
                           type="button"
                           onClick={() => {
-                            setEixosSelecionados(eixosSelecionados.filter(e => e !== eixo));
+                            setEixosSelecionados((eixosSelecionados || []).filter(e => e !== eixo));
                           }}
                           className="ml-1 text-blue-600 hover:text-blue-800"
                         >
@@ -307,23 +303,6 @@ export function CreditoForm({
               )}
             </div>
 
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Natureza *
-              </label>
-              <input
-                type="text"
-                value={formData.natureza}
-                onChange={(e) => handleInputChange('natureza', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.natureza ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="Ex: I-449000"
-              />
-              {errors.natureza && (
-                <p className="text-red-500 text-sm mt-1">{errors.natureza}</p>
-              )}
-            </div>
           </div>
 
           {/* Seção Origem do Crédito */}
@@ -395,7 +374,7 @@ export function CreditoForm({
                 </div>
 
                 <div className="space-y-2">
-                  {creditosAnterioresSelecionados.map((creditoId, index) => (
+                  {(creditosAnterioresSelecionados || []).map((creditoId, index) => (
                     <div key={index} className="flex gap-2 items-center">
                       <select
                         value={creditoId}
@@ -414,7 +393,7 @@ export function CreditoForm({
                             </option>
                           ))}
                       </select>
-                      {creditosAnterioresSelecionados.length > 1 && (
+                      {(creditosAnterioresSelecionados || []).length > 1 && (
                         <button
                           type="button"
                           onClick={() => removerCreditoAnterior(index)}
@@ -427,7 +406,7 @@ export function CreditoForm({
                   ))}
                 </div>
 
-                {creditosAnterioresSelecionados.length === 0 && (
+                {(creditosAnterioresSelecionados || []).length === 0 && (
                   <button
                     type="button"
                     onClick={adicionarCreditoAnterior}
@@ -458,7 +437,7 @@ export function CreditoForm({
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
               disabled={loading}
             >
-              {loading ? 'Salvando...' : isEditing ? 'Salvar Alterações' : 'Criar Crédito'}
+              {loading ? 'Salvando...' : isEditing ? 'Salvar Alterações' : 'Criar Descentralização'}
             </button>
           </div>
         </form>

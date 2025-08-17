@@ -9,7 +9,7 @@ interface DespesaFormProps {
   onCancel: () => void;
   initialData?: Partial<Despesa>;
   isEditing?: boolean;
-  creditosDisponiveis: CreditoWithCalculations[];
+  descentralizacoesDisponiveis: CreditoWithCalculations[];
 }
 
 export function DespesaForm({ 
@@ -17,11 +17,12 @@ export function DespesaForm({
   onCancel, 
   initialData, 
   isEditing = false,
-  creditosDisponiveis 
+  descentralizacoesDisponiveis 
 }: DespesaFormProps) {
   const [formData, setFormData] = useState({
     processoSEI: initialData?.processoSEI || '',
     objeto: initialData?.objeto || '',
+    natureza: initialData?.natureza || '',
     status: initialData?.status || 'Planejado' as const,
     dataPrestacaoContas: initialData?.dataPrestacaoContas || '',
     prestacaoContasInfo: initialData?.prestacaoContasInfo || '',
@@ -36,8 +37,12 @@ export function DespesaForm({
       valorUtilizado: 0,
       notaEmpenho: '',
       dataEmpenho: '',
+      notaLiquidacao: '',
+      valorLiquidado: 0,
       ordemBancaria: '',
-      dataPagamento: ''
+      dataPagamento: '',
+      quantidade: 1,
+      valorUnitario: 0
     }]
   );
 
@@ -62,8 +67,12 @@ export function DespesaForm({
       valorUtilizado: 0,
       notaEmpenho: '',
       dataEmpenho: '',
+      notaLiquidacao: '',
+      valorLiquidado: 0,
       ordemBancaria: '',
-      dataPagamento: ''
+      dataPagamento: '',
+      quantidade: 1,
+      valorUnitario: 0
     }]);
   };
 
@@ -83,12 +92,12 @@ export function DespesaForm({
   };
 
   const obterSaldoDisponivel = (creditoId: string): number => {
-    const credito = creditosDisponiveis.find(c => c.id === creditoId);
+    const credito = descentralizacoesDisponiveis.find(c => c.id === creditoId);
     return credito?.saldoDisponivel || 0;
   };
 
   const obterCreditoCodigo = (creditoId: string): string => {
-    const credito = creditosDisponiveis.find(c => c.id === creditoId);
+    const credito = descentralizacoesDisponiveis.find(c => c.id === creditoId);
     return credito?.creditoCodigo || '';
   };
 
@@ -102,19 +111,24 @@ export function DespesaForm({
     if (!formData.objeto.trim()) {
       newErrors.objeto = 'Objeto é obrigatório';
     }
-
-    if (!formData.metaAssociada.trim()) {
-      newErrors.metaAssociada = 'Meta associada é obrigatória';
+    
+    if (!formData.natureza.trim()) {
+      newErrors.natureza = 'Natureza é obrigatória';
     }
 
-    if (!formData.acaoAssociada.trim()) {
-      newErrors.acaoAssociada = 'Ação associada é obrigatória';
-    }
+    // Meta e ação associadas são opcionais
+    // if (!formData.metaAssociada.trim()) {
+    //   newErrors.metaAssociada = 'Meta associada é obrigatória';
+    // }
+
+    // if (!formData.acaoAssociada.trim()) {
+    //   newErrors.acaoAssociada = 'Ação associada é obrigatória';
+    // }
 
     // Validar fontes de recurso
     fontesDeRecurso.forEach((fonte, index) => {
       if (!fonte.creditoId) {
-        newErrors[`fonte_${index}_credito`] = 'Selecione um crédito';
+        newErrors[`fonte_${index}_credito`] = 'Selecione uma descentralização';
       }
       
       if (fonte.valorUtilizado <= 0) {
@@ -132,6 +146,18 @@ export function DespesaForm({
         }
         if (!fonte.dataEmpenho) {
           newErrors[`fonte_${index}_dataEmpenho`] = 'Data de empenho é obrigatória';
+        }
+      }
+
+      if (formData.status === 'Liquidado' || formData.status === 'Pago') {
+        if (!fonte.notaLiquidacao?.trim()) {
+          newErrors[`fonte_${index}_liquidacao`] = 'Nota de liquidação é obrigatória';
+        }
+        if (!fonte.valorLiquidado || fonte.valorLiquidado <= 0) {
+          newErrors[`fonte_${index}_valorLiquidado`] = 'Valor liquidado deve ser maior que zero';
+        }
+        if (fonte.valorLiquidado && fonte.valorLiquidado > fonte.valorUtilizado) {
+          newErrors[`fonte_${index}_valorLiquidado`] = 'Valor liquidado não pode ser maior que o valor utilizado';
         }
       }
 
@@ -258,6 +284,27 @@ export function DespesaForm({
                 <p className="text-red-500 text-sm mt-1">{errors.objeto}</p>
               )}
             </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Natureza *
+              </label>
+              <input
+                type="text"
+                value={formData.natureza}
+                onChange={(e) => handleInputChange('natureza', e.target.value)}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.natureza ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Ex: I-449000 (Investimento) ou C-339030 (Custeio)"
+              />
+              {errors.natureza && (
+                <p className="text-red-500 text-sm mt-1">{errors.natureza}</p>
+              )}
+              <p className="text-sm text-gray-500 mt-1">
+                Classificação da despesa: I (Investimento) ou C (Custeio)
+              </p>
+            </div>
           </div>
 
           {/* Seção Fontes de Recurso */}
@@ -294,7 +341,7 @@ export function DespesaForm({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Crédito *
+                        Origem (DC) *
                       </label>
                       <select
                         value={fonte.creditoId}
@@ -303,8 +350,8 @@ export function DespesaForm({
                           errors[`fonte_${index}_credito`] ? 'border-red-500' : 'border-gray-300'
                         }`}
                       >
-                        <option value="">Selecione um crédito</option>
-                        {creditosDisponiveis.map(credito => (
+                        <option value="">Selecione uma descentralização</option>
+                        {descentralizacoesDisponiveis.map(credito => (
                           <option key={credito.id} value={credito.id}>
                             {credito.creditoCodigo} - Saldo: {credito.saldoDisponivel.toLocaleString('pt-BR', {
                               style: 'currency',
@@ -347,82 +394,172 @@ export function DespesaForm({
                     </div>
                   </div>
 
-                  {/* Segunda linha: Empenho (se status não for Planejado) */}
-                  {formData.status !== 'Planejado' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Nota de Empenho *
-                        </label>
-                        <input
-                          type="text"
-                          value={fonte.notaEmpenho || ''}
-                          onChange={(e) => atualizarFonteDeRecurso(index, 'notaEmpenho', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                            errors[`fonte_${index}_empenho`] ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                          placeholder="Ex: 2024NE00123"
-                        />
-                        {errors[`fonte_${index}_empenho`] && (
-                          <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_empenho`]}</p>
-                        )}
-                      </div>
+                  {/* Segunda linha: Quantidade e Valor Unitário */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Quantidade
+                      </label>
+                      <input
+                        type="number"
+                        step="1"
+                        value={fonte.quantidade || 1}
+                        onChange={(e) => atualizarFonteDeRecurso(index, 'quantidade', parseInt(e.target.value) || 1)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        min="1"
+                      />
+                    </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Data de Empenho *
-                        </label>
-                        <input
-                          type="date"
-                          value={fonte.dataEmpenho || ''}
-                          onChange={(e) => atualizarFonteDeRecurso(index, 'dataEmpenho', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                            errors[`fonte_${index}_dataEmpenho`] ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                        />
-                        {errors[`fonte_${index}_dataEmpenho`] && (
-                          <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_dataEmpenho`]}</p>
-                        )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Valor Unitário (R$)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={fonte.valorUnitario || 0}
+                        onChange={(e) => atualizarFonteDeRecurso(index, 'valorUnitario', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Seção Empenho (se status não for Planejado) */}
+                  {formData.status !== 'Planejado' && (
+                    <div className="border-t border-gray-200 pt-4 mb-4">
+                      <h5 className="text-sm font-medium text-gray-900 mb-3">📋 Dados do Empenho</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Nota de Empenho *
+                          </label>
+                          <input
+                            type="text"
+                            value={fonte.notaEmpenho || ''}
+                            onChange={(e) => atualizarFonteDeRecurso(index, 'notaEmpenho', e.target.value)}
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              errors[`fonte_${index}_empenho`] ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                            placeholder="Ex: 2024NE00123"
+                          />
+                          {errors[`fonte_${index}_empenho`] && (
+                            <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_empenho`]}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Data de Empenho *
+                          </label>
+                          <input
+                            type="date"
+                            value={fonte.dataEmpenho || ''}
+                            onChange={(e) => atualizarFonteDeRecurso(index, 'dataEmpenho', e.target.value)}
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              errors[`fonte_${index}_dataEmpenho`] ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          />
+                          {errors[`fonte_${index}_dataEmpenho`] && (
+                            <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_dataEmpenho`]}</p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Terceira linha: Pagamento (se status for Pago) */}
-                  {formData.status === 'Pago' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Ordem Bancária *
-                        </label>
-                        <input
-                          type="text"
-                          value={fonte.ordemBancaria || ''}
-                          onChange={(e) => atualizarFonteDeRecurso(index, 'ordemBancaria', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                            errors[`fonte_${index}_ob`] ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                          placeholder="Ex: 2024OB45678"
-                        />
-                        {errors[`fonte_${index}_ob`] && (
-                          <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_ob`]}</p>
-                        )}
-                      </div>
+                  {/* Seção Liquidação (se status for Liquidado ou Pago) */}
+                  {(formData.status === 'Liquidado' || formData.status === 'Pago') && (
+                    <div className="border-t border-gray-200 pt-4 mb-4">
+                      <h5 className="text-sm font-medium text-gray-900 mb-3">💰 Dados da Liquidação</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Nota de Liquidação *
+                          </label>
+                          <input
+                            type="text"
+                            value={fonte.notaLiquidacao || ''}
+                            onChange={(e) => atualizarFonteDeRecurso(index, 'notaLiquidacao', e.target.value)}
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              errors[`fonte_${index}_liquidacao`] ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                            placeholder="Ex: 2024NL00456"
+                          />
+                          {errors[`fonte_${index}_liquidacao`] && (
+                            <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_liquidacao`]}</p>
+                          )}
+                        </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Data de Pagamento *
-                        </label>
-                        <input
-                          type="date"
-                          value={fonte.dataPagamento || ''}
-                          onChange={(e) => atualizarFonteDeRecurso(index, 'dataPagamento', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                            errors[`fonte_${index}_dataPagamento`] ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                        />
-                        {errors[`fonte_${index}_dataPagamento`] && (
-                          <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_dataPagamento`]}</p>
-                        )}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Valor Liquidado (R$) *
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={fonte.valorLiquidado || ''}
+                            onChange={(e) => atualizarFonteDeRecurso(index, 'valorLiquidado', parseFloat(e.target.value) || 0)}
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              errors[`fonte_${index}_valorLiquidado`] ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                            min="0"
+                            max={fonte.valorUtilizado}
+                            placeholder="0,00"
+                          />
+                          {errors[`fonte_${index}_valorLiquidado`] && (
+                            <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_valorLiquidado`]}</p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-1">
+                            Máximo: {fonte.valorUtilizado.toLocaleString('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Seção Pagamento (se status for Pago) */}
+                  {formData.status === 'Pago' && (
+                    <div className="border-t border-gray-200 pt-4">
+                      <h5 className="text-sm font-medium text-gray-900 mb-3">🏪 Dados do Pagamento</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Ordem Bancária *
+                          </label>
+                          <input
+                            type="text"
+                            value={fonte.ordemBancaria || ''}
+                            onChange={(e) => atualizarFonteDeRecurso(index, 'ordemBancaria', e.target.value)}
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              errors[`fonte_${index}_ob`] ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                            placeholder="Ex: 2024OB45678"
+                          />
+                          {errors[`fonte_${index}_ob`] && (
+                            <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_ob`]}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Data de Pagamento *
+                          </label>
+                          <input
+                            type="date"
+                            value={fonte.dataPagamento || ''}
+                            onChange={(e) => atualizarFonteDeRecurso(index, 'dataPagamento', e.target.value)}
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              errors[`fonte_${index}_dataPagamento`] ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          />
+                          {errors[`fonte_${index}_dataPagamento`] && (
+                            <p className="text-red-500 text-sm mt-1">{errors[`fonte_${index}_dataPagamento`]}</p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -478,38 +615,28 @@ export function DespesaForm({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meta Associada *
+                  Meta Associada
                 </label>
                 <input
                   type="text"
                   value={formData.metaAssociada}
                   onChange={(e) => handleInputChange('metaAssociada', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.metaAssociada ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Ex: meta_01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: meta_01 (opcional)"
                 />
-                {errors.metaAssociada && (
-                  <p className="text-red-500 text-sm mt-1">{errors.metaAssociada}</p>
-                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ação Associada *
+                  Ação Associada
                 </label>
                 <input
                   type="text"
                   value={formData.acaoAssociada}
                   onChange={(e) => handleInputChange('acaoAssociada', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.acaoAssociada ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Ex: acao_01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: acao_01 (opcional)"
                 />
-                {errors.acaoAssociada && (
-                  <p className="text-red-500 text-sm mt-1">{errors.acaoAssociada}</p>
-                )}
               </div>
             </div>
           </div>

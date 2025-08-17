@@ -6,26 +6,27 @@ import { Navbar } from "@/components/layout/navbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, Filter, Edit, Trash2 } from "lucide-react";
 import type { CreditoWithCalculations, Credito } from "@/types";
-import { useCreditos } from "@/hooks/use-creditos";
+import { useDescentralizacoes } from "@/hooks/use-descentralizacoes";
 import { CreditoForm } from "@/components/forms/credito-form";
 
 export default function CreditosPage() {
   const router = useRouter();
-  const { creditos, creditosWithCalculations, loading, error, createCredito } = useCreditos();
+  const { descentralizacoes, descentralizacoesWithCalculations, loading, error, createDescentralizacao, updateDescentralizacao, deleteDescentralizacao } = useDescentralizacoes();
   const [filteredCreditos, setFilteredCreditos] = useState<CreditoWithCalculations[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>("todos");
   const [showForm, setShowForm] = useState(false);
+  const [editingCredito, setEditingCredito] = useState<Credito | null>(null);
 
   useEffect(() => {
-    setFilteredCreditos(creditosWithCalculations);
-  }, [creditosWithCalculations]);
+    setFilteredCreditos(descentralizacoesWithCalculations);
+  }, [descentralizacoesWithCalculations]);
 
   useEffect(() => {
     // Aplicar filtros
-    let filtered = creditosWithCalculations;
+    let filtered = descentralizacoesWithCalculations;
 
     if (searchTerm) {
       filtered = filtered.filter(credito => 
@@ -41,16 +42,37 @@ export default function CreditosPage() {
     }
 
     setFilteredCreditos(filtered);
-  }, [searchTerm, selectedYear, creditosWithCalculations]);
+  }, [searchTerm, selectedYear, descentralizacoesWithCalculations]);
 
-  const years = [...new Set(creditosWithCalculations.map(c => c.anoExercicio))].sort((a, b) => b - a);
+  const years = [...new Set(descentralizacoesWithCalculations.map(c => c.anoExercicio))].sort((a, b) => b - a);
 
-  const handleCreateCredito = async (creditoData: Omit<Credito, 'id'>) => {
+  const handleCreateDescentralizacao = async (descentralizacaoData: Omit<Credito, 'id'>) => {
     try {
-      await createCredito(creditoData);
+      await createDescentralizacao(descentralizacaoData);
       setShowForm(false);
     } catch (error) {
-      console.error('Failed to create credito:', error);
+      console.error('Failed to create descentralizacao:', error);
+    }
+  };
+
+  const handleUpdateDescentralizacao = async (descentralizacaoData: Omit<Credito, 'id'>) => {
+    if (!editingCredito) return;
+    
+    try {
+      await updateDescentralizacao(editingCredito.id, descentralizacaoData);
+      setEditingCredito(null);
+    } catch (error) {
+      console.error('Failed to update descentralizacao:', error);
+    }
+  };
+
+  const handleDeleteDescentralizacao = async (creditoId: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta descentralização de crédito? Esta ação não pode ser desfeita.')) return;
+    
+    try {
+      await deleteDescentralizacao(creditoId);
+    } catch (error) {
+      console.error('Failed to delete descentralizacao:', error);
     }
   };
 
@@ -61,7 +83,7 @@ export default function CreditosPage() {
         <main className="w-full py-6 px-8">
           <div className="px-4 py-6 sm:px-0">
             <div className="flex justify-center items-center h-64">
-              <div className="text-gray-500">Carregando créditos...</div>
+              <div className="text-gray-500">Carregando descentralizações...</div>
             </div>
           </div>
         </main>
@@ -76,7 +98,7 @@ export default function CreditosPage() {
         <main className="w-full py-6 px-8">
           <div className="px-4 py-6 sm:px-0">
             <div className="flex justify-center items-center h-64">
-              <div className="text-red-500">Erro ao carregar créditos: {error}</div>
+              <div className="text-red-500">Erro ao carregar descentralizações: {error}</div>
             </div>
           </div>
         </main>
@@ -92,14 +114,14 @@ export default function CreditosPage() {
         <div className="px-4 py-6 sm:px-0">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-semibold text-gray-900">
-              Gestão de Créditos
+              Gestão de Descentralizações de Crédito
             </h1>
             <button 
               onClick={() => setShowForm(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              Adicionar Novo Crédito
+              Nova Descentralização de Crédito
             </button>
           </div>
 
@@ -141,7 +163,7 @@ export default function CreditosPage() {
                     Ano
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Código do Crédito
+                    Descentralização (DC)
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Eixos
@@ -156,13 +178,16 @@ export default function CreditosPage() {
                     Valor Empenhado
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Valor Pago
+                    Valor Liquidado
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Saldo Disponível
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ações
                   </th>
                 </tr>
               </thead>
@@ -176,7 +201,7 @@ export default function CreditosPage() {
                     <tr 
                       key={credito.id}
                       className="hover:bg-gray-50 cursor-pointer"
-                      onClick={() => router.push(`/creditos/${credito.id}`)}
+                      onClick={() => router.push(`/descentralizacoes/${credito.id}`)}
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {credito.anoExercicio}
@@ -209,7 +234,7 @@ export default function CreditosPage() {
                         {formatCurrency(credito.valorEmpenhado)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
-                        {formatCurrency(credito.valorPago)}
+                        {formatCurrency(credito.valorLiquidado)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
                         {formatCurrency(credito.saldoDisponivel)}
@@ -222,6 +247,30 @@ export default function CreditosPage() {
                           {saldoPercentual}% - {status}
                         </Badge>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingCredito(descentralizacoes[credito.id]);
+                            }}
+                            className="text-indigo-600 hover:text-indigo-900 p-1"
+                            title="Editar"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDescentralizacao(credito.id);
+                            }}
+                            className="text-red-600 hover:text-red-900 p-1"
+                            title="Excluir"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -232,9 +281,9 @@ export default function CreditosPage() {
           {filteredCreditos.length === 0 && !loading && (
             <div className="bg-white shadow rounded-md p-8 text-center">
               <div className="text-gray-500">
-                {creditosWithCalculations.length === 0 
-                  ? "Nenhum crédito encontrado. Adicione o primeiro crédito!"
-                  : "Nenhum crédito corresponde aos filtros aplicados."
+                {descentralizacoesWithCalculations.length === 0 
+                  ? "Nenhuma descentralização encontrada. Adicione a primeira descentralização!"
+                  : "Nenhuma descentralização corresponde aos filtros aplicados."
                 }
               </div>
             </div>
@@ -244,9 +293,19 @@ export default function CreditosPage() {
 
       {showForm && (
         <CreditoForm
-          onSubmit={handleCreateCredito}
+          onSubmit={handleCreateDescentralizacao}
           onCancel={() => setShowForm(false)}
-          creditosAnteriores={Object.values(creditos)}
+          creditosAnteriores={Object.values(descentralizacoes)}
+        />
+      )}
+
+      {editingCredito && (
+        <CreditoForm
+          onSubmit={handleUpdateDescentralizacao}
+          onCancel={() => setEditingCredito(null)}
+          initialData={editingCredito}
+          isEditing={true}
+          creditosAnteriores={Object.values(descentralizacoes)}
         />
       )}
     </div>

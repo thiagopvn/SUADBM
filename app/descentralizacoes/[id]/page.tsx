@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate, getStatusColor } from "@/lib/utils";
 import type { Credito, Despesa, PrestacaoContas, CreditoWithCalculations } from "@/types";
-import { useCreditos } from "@/hooks/use-creditos";
+import { useDescentralizacoes } from "@/hooks/use-descentralizacoes";
 import { useDespesas } from "@/hooks/use-despesas";
 import { usePrestacaoContas } from "@/hooks/use-prestacoes-contas";
 import { DespesaForm } from "@/components/forms/despesa-form";
+import { CreditoForm } from "@/components/forms/credito-form";
 import { TabelaPrestacoes } from "@/components/prestacao-contas/tabela-prestacoes";
 import { ModalGerenciarPrestacao } from "@/components/prestacao-contas/modal-gerenciar-prestacao";
 import { 
@@ -33,7 +34,7 @@ export default function CreditoDetalhesPage() {
   const router = useRouter();
   const creditoId = params.id as string;
   
-  const { creditos, creditosDisponiveis, loading: loadingCreditos } = useCreditos();
+  const { descentralizacoes, descentralizacoesDisponiveis, loading: loadingCreditos, updateDescentralizacao, deleteDescentralizacao } = useDescentralizacoes();
   const { despesasWithCredits, createDespesa, updateDespesa, deleteDespesa, getDespesasByCredito } = useDespesas();
   
   const [credito, setCredito] = useState<Credito | null>(null);
@@ -46,6 +47,7 @@ export default function CreditoDetalhesPage() {
   const [editingDespesa, setEditingDespesa] = useState<Despesa | null>(null);
   const [modalPrestacaoAberto, setModalPrestacaoAberto] = useState(false);
   const [prestacaoSelecionada, setPrestacaoSelecionada] = useState<PrestacaoContas | null>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
   
   // Hook para prestações de contas
   const { 
@@ -56,23 +58,23 @@ export default function CreditoDetalhesPage() {
 
   // Encontrar o crédito específico
   useEffect(() => {
-    if (creditos && creditoId) {
-      const creditoEncontrado = creditos[creditoId];
+    if (descentralizacoes && creditoId) {
+      const creditoEncontrado = descentralizacoes[creditoId];
       if (creditoEncontrado) {
         setCredito(creditoEncontrado);
       }
     }
-  }, [creditos, creditoId]);
+  }, [descentralizacoes, creditoId]);
 
   // Encontrar os cálculos do crédito
   useEffect(() => {
-    if (creditosDisponiveis && creditoId) {
-      const creditoComCalculos = creditosDisponiveis.find(c => c.id === creditoId);
+    if (descentralizacoesDisponiveis && creditoId) {
+      const creditoComCalculos = descentralizacoesDisponiveis.find(c => c.id === creditoId);
       if (creditoComCalculos) {
         setCreditoCalculations(creditoComCalculos);
       }
     }
-  }, [creditosDisponiveis, creditoId]);
+  }, [descentralizacoesDisponiveis, creditoId]);
 
   // Filtrar despesas relacionadas ao crédito
   useEffect(() => {
@@ -131,6 +133,29 @@ export default function CreditoDetalhesPage() {
     }
   };
 
+  const handleUpdateDescentralizacao = async (descentralizacaoData: Omit<Credito, 'id'>) => {
+    if (!credito) return;
+    
+    try {
+      await updateDescentralizacao(credito.id, descentralizacaoData);
+      setShowEditForm(false);
+    } catch (error) {
+      console.error('Failed to update descentralizacao:', error);
+    }
+  };
+
+  const handleDeleteDescentralizacao = async () => {
+    if (!credito) return;
+    if (!confirm('Tem certeza que deseja excluir esta descentralização de crédito? Esta ação não pode ser desfeita.')) return;
+    
+    try {
+      await deleteDescentralizacao(credito.id);
+      router.push('/descentralizacoes');
+    } catch (error) {
+      console.error('Failed to delete descentralizacao:', error);
+    }
+  };
+
   const renderMultipleCreditIndicator = (despesa: typeof despesasWithCredits[0]) => {
     if (despesa.fontesDeRecurso.length <= 1) return null;
 
@@ -185,7 +210,7 @@ export default function CreditoDetalhesPage() {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           <button 
-            onClick={() => router.push('/creditos')}
+            onClick={() => router.push('/descentralizacoes')}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -211,14 +236,28 @@ export default function CreditoDetalhesPage() {
                 <div className="flex gap-4 text-sm text-gray-500">
                   <span>Ano: {credito.anoExercicio}</span>
                   <span>•</span>
-                  <span>Natureza: {credito.natureza}</span>
-                  <span>•</span>
                   <span>Origem: {credito.origem?.tipo === 'Ano vigente' ? 'Ano vigente' : 'Anos anteriores'}</span>
                 </div>
               </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setShowEditForm(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md border border-blue-200"
+                >
+                  <Edit className="w-4 h-4" />
+                  Editar
+                </button>
+                <button 
+                  onClick={handleDeleteDescentralizacao}
+                  className="flex items-center gap-2 px-4 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md border border-red-200"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Excluir
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-gray-600">
@@ -241,6 +280,19 @@ export default function CreditoDetalhesPage() {
                 <CardContent>
                   <p className="text-2xl font-bold text-yellow-600">
                     {formatCurrency(creditoCalculations?.valorEmpenhado || 0)}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">
+                    Valor Liquidado
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {formatCurrency(creditoCalculations?.valorLiquidado || 0)}
                   </p>
                 </CardContent>
               </Card>
@@ -383,7 +435,7 @@ export default function CreditoDetalhesPage() {
                               <h4 className="text-sm font-medium text-blue-900 mb-2">
                                 Participação deste Crédito
                               </h4>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div>
                                   <p className="text-xs text-blue-700">Valor Financiado:</p>
                                   <p className="font-semibold text-blue-900">
@@ -406,6 +458,18 @@ export default function CreditoDetalhesPage() {
                                         {new Date(participacao.dataEmpenho).toLocaleDateString('pt-BR')}
                                       </p>
                                     )}
+                                  </div>
+                                )}
+                                
+                                {participacao?.notaLiquidacao && (
+                                  <div>
+                                    <p className="text-xs text-blue-700">Liquidação:</p>
+                                    <p className="font-semibold text-blue-900">
+                                      {participacao.notaLiquidacao}
+                                    </p>
+                                    <p className="text-xs text-blue-600">
+                                      {formatCurrency(participacao.valorLiquidado || 0)}
+                                    </p>
                                   </div>
                                 )}
                                 
@@ -483,7 +547,7 @@ export default function CreditoDetalhesPage() {
         <DespesaForm
           onSubmit={handleCreateDespesa}
           onCancel={() => setShowDespesaForm(false)}
-          creditosDisponiveis={creditosDisponiveis}
+          descentralizacoesDisponiveis={descentralizacoesDisponiveis}
         />
       )}
 
@@ -493,7 +557,7 @@ export default function CreditoDetalhesPage() {
           onCancel={() => setEditingDespesa(null)}
           initialData={editingDespesa}
           isEditing={true}
-          creditosDisponiveis={creditosDisponiveis}
+          descentralizacoesDisponiveis={descentralizacoesDisponiveis}
         />
       )}
 
@@ -511,6 +575,16 @@ export default function CreditoDetalhesPage() {
           }
         }}
       />
+
+      {showEditForm && credito && (
+        <CreditoForm
+          onSubmit={handleUpdateDescentralizacao}
+          onCancel={() => setShowEditForm(false)}
+          initialData={credito}
+          isEditing={true}
+          creditosAnteriores={Object.values(descentralizacoes)}
+        />
+      )}
     </div>
   );
 }

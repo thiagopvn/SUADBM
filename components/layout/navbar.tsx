@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { 
   Home, 
-  DollarSign, 
+  ArrowRightLeft, 
   BarChart3,
   Settings,
   LogOut,
@@ -15,7 +15,7 @@ import {
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
-  { href: "/creditos", label: "Créditos", icon: DollarSign },
+  { href: "/descentralizacoes", label: "Descentralizações", icon: ArrowRightLeft },
   { href: "/rastreamento", label: "Rastreamento", icon: Search },
   { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/configuracoes", label: "Configurações", icon: Settings },

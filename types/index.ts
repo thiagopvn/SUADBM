@@ -9,6 +9,11 @@ export interface FonteDeRecurso {
   dataEmpenho?: string;
   ordemBancaria?: string;
   dataPagamento?: string;
+  // NOVOS CAMPOS ADICIONADOS
+  notaLiquidacao?: string;
+  valorLiquidado?: number;
+  quantidade?: number;
+  valorUnitario?: number;
 }
 
 // Tipo para rastreabilidade de origem dos créditos
@@ -21,6 +26,7 @@ export interface Despesa {
   id: string;
   objeto: string;
   processoSEI: string;
+  natureza: string; // MOVIDO DE Credito - natureza é específica do objeto/despesa
   status: 'Planejado' | 'Empenhado' | 'Liquidado' | 'Pago' | 'Cancelado';
   fontesDeRecurso: FonteDeRecurso[]; // Array de objetos FonteDeRecurso com transações individuais
   valorTotal: number; // Calculado pela soma de valorUtilizado das fontes
@@ -29,6 +35,8 @@ export interface Despesa {
   prestacaoContasInfo: string | null;
   metaAssociada: string;
   acaoAssociada: string;
+  // NOVO CAMPO ADICIONADO
+  planoDeTrabalho?: string;
 }
 
 // Interface Credito reformulada - com suporte a múltiplos eixos
@@ -39,8 +47,8 @@ export interface Credito {
   eixos: string[]; // NOVO CAMPO: Array de strings para múltiplos eixos (VPS, ECV, etc.)
   valorGlobal: number;
   origem: OrigemCredito; // NOVO CAMPO DE RASTREABILIDADE
-  natureza: string;
   dataLancamento: string; // Formato YYYY-MM-DD - gatilho para prestação de contas
+  // REMOVIDO: natureza - agora pertence a cada despesa/objeto específico
 }
 
 export interface MetaAcao {
@@ -63,8 +71,11 @@ export interface MockData {
 export interface DashboardData {
   valorGlobalConsolidado: number;
   valorEmpenhado: number;
-  valorLiquidadoPago: number;
-  saldoDisponivel: number; // Calculado: valorGlobalConsolidado - (valorLiquidadoPago + valorEmpenhado)
+  valorLiquidado: number;
+  valorPago: number;
+  saldoDisponivel: number; // Calculado: valorGlobalConsolidado - valorEmpenhado
+  percentualEmpenhado: number; // Percentual do valor global que foi empenhado
+  percentualLiquidado: number; // Percentual do valor empenhado que foi liquidado
   totalCreditos: number;
   chartData: ChartDataPoint[];
   pieData: PieDataPoint[];
@@ -88,6 +99,7 @@ export interface DespesaWithCreditos extends Despesa {
 
 export interface CreditoWithCalculations extends Credito {
   valorEmpenhado: number;
+  valorLiquidado: number;
   valorPago: number;
   saldoDisponivel: number; // Calculado: valorGlobal - (valorPago + valorEmpenhado)
 }

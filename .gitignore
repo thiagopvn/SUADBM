@@ -5,13 +5,17 @@ yarn-debug.log*
 yarn-error.log*
 
 # Next.js
-# .next/
+.next/
 out/
 build/
 
 # Environment variables
 .env*
 !.env.example
+
+# Firebase Service Account Keys (NEVER COMMIT THESE!)
+serviceAccountKey*.json
+*serviceAccountKey*.json
 
 # Production
 dist/

@@ -62,8 +62,8 @@ node scripts/importData.js  # Import mock data to Firebase (requires admin SDK)
 
 4. **Routing**: File-based routing in `/app` directory:
    - `/` - Dashboard with overview metrics
-   - `/creditos` - Credits listing and management
-   - `/creditos/[id]` - Credit detail pages
+   - `/descentralizacoes` - Budget decentralizations listing and management
+   - `/descentralizacoes/[id]` - Decentralization detail pages
    - `/rastreamento` - SEI process and financial tracking
    - `/relatorios` - Reports page
    - `/configuracoes` - Settings page

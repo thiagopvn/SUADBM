@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { firebaseService } from "@/lib/firebase-service";
 import ImportDataButton from "./import-data";
-import FirebaseDiagnostics from "@/components/firebase-diagnostics";
 import {
   Settings,
   User,
@@ -413,9 +412,6 @@ export default function ConfiguracoesPage() {
           </div>
         </div>
       </Card>
-
-      {/* Diagnóstico Firebase */}
-      <FirebaseDiagnostics />
 
       {/* Importar Dados de Teste */}
       <ImportDataButton />

@@ -5,12 +5,13 @@ import { Navbar } from "@/components/layout/navbar";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { firebaseService } from "@/lib/firebase-service";
-import { 
-  Settings, 
-  User, 
-  Shield, 
-  Database, 
-  Bell, 
+import ImportDataButton from "./import-data";
+import {
+  Settings,
+  User,
+  Shield,
+  Database,
+  Bell,
   Palette,
   Download,
   Upload
@@ -374,7 +375,7 @@ export default function ConfiguracoesPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="text-center">
-            <button 
+            <button
               onClick={handleExportData}
               disabled={loading}
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 mb-2 disabled:opacity-50"
@@ -388,9 +389,9 @@ export default function ConfiguracoesPage() {
             <label className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 mb-2 cursor-pointer">
               <Upload className="w-4 h-4 mr-2" />
               Importar Dados
-              <input 
-                type="file" 
-                accept=".json" 
+              <input
+                type="file"
+                accept=".json"
                 onChange={handleImportData}
                 className="hidden"
                 disabled={loading}
@@ -399,7 +400,7 @@ export default function ConfiguracoesPage() {
             <p className="text-sm text-gray-600">Restaurar dados de backup</p>
           </div>
           <div className="text-center">
-            <button 
+            <button
               onClick={handleSync}
               disabled={loading}
               className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 mb-2 disabled:opacity-50"
@@ -411,6 +412,9 @@ export default function ConfiguracoesPage() {
           </div>
         </div>
       </Card>
+
+      {/* Importar Dados de Teste */}
+      <ImportDataButton />
           </div>
         </div>
       </main>

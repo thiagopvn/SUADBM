@@ -2,11 +2,15 @@
 
 ## ⚠️ Problema Identificado
 
-O erro `PERMISSION_DENIED` ocorre porque as regras do Firebase Realtime Database no console não permitem leitura/escrita.
+O erro `PERMISSION_DENIED` ou `Erro ao buscar descentralizações: FirebaseServiceError: Failed to fetch credits` ocorre porque as regras do Firebase Realtime Database no console não permitem leitura/escrita.
 
 ## 🔧 Solução: Atualizar Regras no Console do Firebase
 
 ### Passo 1: Acessar o Console do Firebase
+
+**LINK DIRETO:** https://console.firebase.google.com/project/suad-44036/database/suad-44036-default-rtdb/rules
+
+OU manualmente:
 
 1. Abra https://console.firebase.google.com/
 2. Selecione o projeto **suad-44036**

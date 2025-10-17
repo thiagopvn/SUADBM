@@ -1,0 +1,656 @@
+================================================================================
+    DOCUMENTAÇÃO COMPLETA DO SISTEMA SUAD CBMERJ
+    Sistema Unificado de Acompanhamento de Despesas
+    Corpo de Bombeiros Militar do Estado do Rio de Janeiro
+================================================================================
+
+1. VISÃO GERAL DO SISTEMA
+================================================================================
+
+1.1 PROPÓSITO
+O SUAD CBMERJ é um sistema de controle financeiro e orçamentário desenvolvido para 
+gerenciar créditos, despesas, prestações de contas e rastreamento de processos SEI,
+notas de empenho e ordens bancárias da Superintendência Administrativa do CBMERJ.
+
+1.2 TECNOLOGIAS UTILIZADAS
+- Framework: Next.js 15 com App Router
+- Linguagem: TypeScript com modo strict
+- Banco de Dados: Firebase Realtime Database
+- Estilização: Tailwind CSS
+- Gráficos: Recharts
+- Gerenciamento de Estado: React Hooks + Firebase listeners em tempo real
+- Runtime: React 19 / Node.js
+
+1.3 ARQUITETURA
+O sistema segue uma arquitetura de componentes React com:
+- Separação clara entre lógica de negócio e apresentação
+- Padrão de hooks customizados para gerenciamento de estado
+- Serviço singleton para operações Firebase
+- Sistema de tipos TypeScript para garantir integridade dos dados
+
+================================================================================
+2. ESTRUTURA DE PASTAS E ARQUIVOS
+================================================================================
+
+/root/projetos/SUAD/
+├── app/                           # Páginas da aplicação (App Router Next.js)
+│   ├── layout.tsx                 # Layout raiz da aplicação
+│   ├── globals.css                # Estilos globais
+│   ├── page.tsx                   # Dashboard principal (/)
+│   ├── creditos/                  
+│   │   ├── page.tsx               # Listagem de créditos (/creditos)
+│   │   └── [id]/                  
+│   │       └── page.tsx           # Detalhes do crédito (/creditos/[id])
+│   ├── rastreamento/              
+│   │   └── page.tsx               # Busca e rastreamento (/rastreamento)
+│   ├── relatorios/                
+│   │   └── page.tsx               # Relatórios (/relatorios)
+│   └── configuracoes/             
+│       └── page.tsx               # Configurações (/configuracoes)
+│
+├── components/                     # Componentes React reutilizáveis
+│   ├── ui/                        # Componentes base de UI
+│   │   ├── card.tsx               # Componente Card
+│   │   ├── badge.tsx              # Componente Badge
+│   │   ├── dialog.tsx             # Componente Dialog (modal)
+│   │   └── tabs.tsx               # Componente Tabs
+│   ├── forms/                     # Componentes de formulário
+│   │   ├── credito-form.tsx       # Formulário de créditos
+│   │   └── despesa-form.tsx       # Formulário de despesas
+│   ├── dashboard/                 # Componentes do dashboard
+│   │   └── summary-cards.tsx      # Cards resumo do dashboard
+│   ├── charts/                    # Componentes de gráficos
+│   │   ├── line-chart.tsx         # Gráfico de linha
+│   │   └── pie-chart.tsx          # Gráfico de pizza
+│   ├── prestacao-contas/          # Componentes de prestação de contas
+│   │   ├── tabela-prestacoes.tsx  # Tabela de prestações
+│   │   └── modal-gerenciar-prestacao.tsx # Modal de gerenciamento
+│   └── layout/                    # Componentes de layout
+│       └── navbar.tsx              # Barra de navegação
+│
+├── hooks/                          # React Hooks customizados
+│   ├── useFirebase.ts             # Hook genérico Firebase (DEPRECATED)
+│   ├── use-firebase-init.ts       # Inicialização Firebase
+│   ├── use-auth.ts                # Autenticação
+│   ├── use-creditos.ts            # Gerenciamento de créditos
+│   ├── use-despesas.ts            # Gerenciamento de despesas
+│   └── use-prestacoes-contas.ts   # Gerenciamento de prestações
+│
+├── lib/                            # Bibliotecas e utilitários
+│   ├── firebase-service.ts        # Serviço singleton Firebase
+│   └── utils.ts                   # Funções utilitárias
+│
+├── types/                          # Definições TypeScript
+│   └── index.ts                   # Tipos e interfaces
+│
+├── firebase/                       # Configuração Firebase
+│   └── config.ts                  # Configuração do Firebase
+│
+├── scripts/                        # Scripts utilitários
+│   ├── importData.js              # Importação de dados mock
+│   └── init-firebase.ts           # Inicialização Firebase
+│
+└── Arquivos de configuração:
+    ├── package.json                # Dependências e scripts
+    ├── tsconfig.json               # Configuração TypeScript
+    ├── tailwind.config.ts          # Configuração Tailwind CSS
+    ├── next.config.js              # Configuração Next.js
+    ├── postcss.config.js           # Configuração PostCSS
+    ├── database.rules.json         # Regras de segurança Firebase
+    └── CLAUDE.md                   # Documentação para Claude Code
+
+================================================================================
+3. MODELO DE DADOS
+================================================================================
+
+3.1 ENTIDADES PRINCIPAIS
+
+3.1.1 CREDITO
+Interface: Credito
+Descrição: Representa um crédito orçamentário
+Campos:
+- id: string - Identificador único
+- creditoCodigo: string - Código do crédito
+- anoExercicio: number - Ano de exercício
+- eixos: string[] - Array de eixos (VPS, ECV, etc.)
+- valorGlobal: number - Valor total do crédito
+- origem: OrigemCredito - Rastreabilidade da origem
+- natureza: string - Natureza do crédito
+- dataLancamento: string - Data de lançamento (YYYY-MM-DD)
+
+3.1.2 DESPESA
+Interface: Despesa
+Descrição: Representa uma despesa independente
+Campos:
+- id: string - Identificador único
+- objeto: string - Descrição do objeto
+- processoSEI: string - Número do processo SEI
+- status: 'Planejado' | 'Empenhado' | 'Liquidado' | 'Pago' | 'Cancelado'
+- fontesDeRecurso: FonteDeRecurso[] - Array de fontes de financiamento
+- valorTotal: number - Valor total (soma das fontes)
+- dataPrestacaoContas: string | null
+- prestacaoContasInfo: string | null
+- metaAssociada: string - Meta associada
+- acaoAssociada: string - Ação associada
+
+3.1.3 FONTE DE RECURSO
+Interface: FonteDeRecurso
+Descrição: Vincula despesas a créditos com detalhes transacionais
+Campos:
+- id: string - Identificador único
+- creditoId: string - ID do crédito associado
+- valorUtilizado: number - Valor utilizado desta fonte
+- notaEmpenho?: string - Número da nota de empenho
+- dataEmpenho?: string - Data do empenho
+- ordemBancaria?: string - Número da ordem bancária
+- dataPagamento?: string - Data do pagamento
+
+3.1.4 PRESTAÇÃO DE CONTAS
+Interface: PrestacaoContas
+Descrição: Obrigação de prestação de contas
+Campos:
+- id: string - Identificador único
+- creditoId: string - ID do crédito pai
+- ano: number - Ano da prestação
+- periodoLabel: string - Label do período
+- prazoFinal: string - Data limite (YYYY-MM-DD)
+- status: 'Pendente' | 'Em Atraso' | 'Entregue'
+- dataEntrega?: string - Data de entrega
+- processoSEI?: string - Processo SEI da prestação
+- despesasVinculadas: string[] - IDs das despesas vinculadas
+- observacoes?: string - Observações
+
+3.1.5 META/AÇÃO
+Interface: MetaAcao
+Campos:
+- descricao: string - Descrição da meta ou ação
+
+3.1.6 FECHAMENTO ANUAL
+Interface: FechamentoAnual
+Campos:
+- totalDevolvido: number - Total devolvido
+- dataFechamento: string - Data do fechamento
+- usuarioResponsavel: string - Usuário responsável
+
+================================================================================
+4. FLUXO DE DADOS
+================================================================================
+
+4.1 ARQUITETURA DE DADOS
+┌─────────────────────────────────────────────┐
+│             Firebase Realtime DB             │
+│  ┌─────────────────────────────────────┐    │
+│  │ /creditos                           │    │
+│  │ /despesas                           │    │
+│  │ /prestacoesContas                   │    │
+│  │ /metasAcoes                         │    │
+│  │ /fechamentosAnuais                  │    │
+│  └─────────────────────────────────────┘    │
+└───────────────▲─────────────────────────────┘
+                │
+                │ Listeners em tempo real
+                │
+┌───────────────▼─────────────────────────────┐
+│         FirebaseService (Singleton)         │
+│  - getAllCreditos()                         │
+│  - getAllDespesas()                         │
+│  - createCredito()                          │
+│  - createDespesa()                          │
+│  - updateCredito()                          │
+│  - updateDespesa()                          │
+│  - deleteCredito()                          │
+│  - deleteDespesa()                          │
+│  - getDashboardData()                       │
+│  - searchDespesasByObjeto()                 │
+│  - searchCreditosByCodigo()                 │
+│  - gerarPrimeiraObrigacao()                 │
+│  - gerarProximaObrigacao()                  │
+└───────────────▲─────────────────────────────┘
+                │
+                │ Chamadas de serviço
+                │
+┌───────────────▼─────────────────────────────┐
+│           Custom Hooks Layer                │
+│  ┌────────────────────────────────────┐    │
+│  │ useCreditos()                      │    │
+│  │ - creditos: Credito[]              │    │
+│  │ - creditosWithCalculations         │    │
+│  │ - createCredito()                  │    │
+│  │ - updateCredito()                  │    │
+│  │ - deleteCredito()                  │    │
+│  └────────────────────────────────────┘    │
+│  ┌────────────────────────────────────┐    │
+│  │ useDespesas()                      │    │
+│  │ - despesas: Despesa[]              │    │
+│  │ - despesasWithCredits              │    │
+│  │ - createDespesa()                  │    │
+│  │ - updateDespesa()                  │    │
+│  │ - deleteDespesa()                  │    │
+│  └────────────────────────────────────┘    │
+│  ┌────────────────────────────────────┐    │
+│  │ usePrestacaoContas()               │    │
+│  │ - prestacoes: PrestacaoContas[]    │    │
+│  │ - marcarComoEntregue()             │    │
+│  │ - vincularDespesas()               │    │
+│  └────────────────────────────────────┘    │
+└───────────────▲─────────────────────────────┘
+                │
+                │ Consumo via hooks
+                │
+┌───────────────▼─────────────────────────────┐
+│            React Components                 │
+│  ┌────────────────────────────────────┐    │
+│  │ Pages (app/)                       │    │
+│  │ - Dashboard                        │    │
+│  │ - Creditos                         │    │
+│  │ - Rastreamento                     │    │
+│  │ - Relatorios                       │    │
+│  └────────────────────────────────────┘    │
+│  ┌────────────────────────────────────┐    │
+│  │ Components                         │    │
+│  │ - Forms                            │    │
+│  │ - Charts                           │    │
+│  │ - Tables                           │    │
+│  │ - Modals                           │    │
+│  └────────────────────────────────────┘    │
+└─────────────────────────────────────────────┘
+
+================================================================================
+5. FUNCIONALIDADES PRINCIPAIS
+================================================================================
+
+5.1 DASHBOARD (/)
+Arquivo: app/page.tsx
+Componentes utilizados:
+- SummaryCards: Cards com métricas resumidas
+- LineChartComponent: Evolução temporal dos créditos
+- PieChartComponent: Distribuição por eixos
+- Tabela de despesas recentes
+
+Fluxo:
+1. Carrega dados via useCreditos() e useDespesas()
+2. Calcula métricas agregadas (valorGlobal, valorEmpenhado, saldoDisponivel)
+3. Processa dados para gráficos
+4. Renderiza interface com métricas e visualizações
+
+5.2 GESTÃO DE CRÉDITOS (/creditos)
+Arquivo: app/creditos/page.tsx
+Funcionalidades:
+- Listagem de todos os créditos
+- Filtros por ano e status
+- Criação de novo crédito
+- Edição e exclusão
+- Navegação para detalhes
+
+5.3 DETALHES DO CRÉDITO (/creditos/[id])
+Arquivo: app/creditos/[id]/page.tsx
+Abas disponíveis:
+1. Visão Geral: Informações do crédito e métricas
+2. Despesas: Lista e gestão de despesas vinculadas
+3. Prestação de Contas: Obrigações e status
+
+Funcionalidades:
+- Visualização detalhada do crédito
+- CRUD de despesas com múltiplas fontes
+- Gestão de prestações de contas
+- Vinculação de despesas a prestações
+
+5.4 RASTREAMENTO (/rastreamento)
+Arquivo: app/rastreamento/page.tsx
+Capacidades de busca:
+- Processo SEI
+- Nota de Empenho
+- Ordem Bancária
+- Descrição do objeto
+- Código do crédito
+
+Fluxo:
+1. Usuario insere termo de busca
+2. Sistema busca em despesas e créditos
+3. Exibe resultados agrupados
+4. Permite visualizar detalhes com modal
+
+5.5 RELATÓRIOS (/relatorios)
+Arquivo: app/relatorios/page.tsx
+Tipos de relatórios:
+- Relatório consolidado
+- Relatório por período
+- Relatório por eixo
+- Exportação de dados
+
+5.6 CONFIGURAÇÕES (/configuracoes)
+Arquivo: app/configuracoes/page.tsx
+Opções:
+- Gerenciar metas e ações
+- Configurações do sistema
+- Importar/exportar dados
+
+================================================================================
+6. COMPONENTES PRINCIPAIS
+================================================================================
+
+6.1 FORMULÁRIO DE DESPESA
+Arquivo: components/forms/despesa-form.tsx
+Características:
+- Suporte a múltiplas fontes de recurso
+- Validação de saldo disponível por crédito
+- Campos para nota de empenho e ordem bancária
+- Cálculo automático do valor total
+
+6.2 TABELA DE PRESTAÇÕES DE CONTAS
+Arquivo: components/prestacao-contas/tabela-prestacoes.tsx
+Funcionalidades:
+- Listagem de obrigações
+- Status automático (Pendente/Em Atraso/Entregue)
+- Cálculo de data de abertura (4 meses antes)
+- Ação para gerenciar prestação
+
+6.3 MODAL DE GERENCIAMENTO DE PRESTAÇÃO
+Arquivo: components/prestacao-contas/modal-gerenciar-prestacao.tsx
+Operações:
+- Marcar como entregue
+- Vincular despesas
+- Adicionar processo SEI
+- Registrar observações
+
+6.4 CARDS DE RESUMO
+Arquivo: components/dashboard/summary-cards.tsx
+Métricas exibidas:
+- Valor Global Consolidado
+- Valor Empenhado
+- Valor Liquidado/Pago
+- Saldo Disponível
+
+6.5 GRÁFICOS
+Arquivos: components/charts/*.tsx
+Tipos:
+- LineChart: Evolução temporal
+- PieChart: Distribuição por categoria
+Biblioteca: Recharts com configuração responsiva
+
+================================================================================
+7. SERVIÇOS E UTILITÁRIOS
+================================================================================
+
+7.1 FIREBASE SERVICE
+Arquivo: lib/firebase-service.ts
+Padrão: Singleton
+Métodos principais:
+
+Créditos:
+- getAllCreditos(): Retorna todos os créditos
+- getCreditoById(id): Retorna crédito específico
+- getCreditosWithCalculations(): Créditos com cálculos
+- createCredito(credito): Cria novo crédito
+- updateCredito(id, updates): Atualiza crédito
+- deleteCredito(id): Remove crédito
+
+Despesas:
+- getAllDespesas(): Retorna todas as despesas
+- getDespesaById(id): Retorna despesa específica
+- getDespesasWithCredits(): Despesas com créditos associados
+- createDespesa(despesa): Cria nova despesa
+- updateDespesa(id, updates): Atualiza despesa
+- deleteDespesa(id): Remove despesa
+
+Prestações de Contas:
+- getPrestacoesByCredito(creditoId): Prestações do crédito
+- gerarPrimeiraObrigacao(creditoId, dataLancamento): Gera primeira obrigação
+- gerarProximaObrigacao(prestacaoAnterior): Gera próxima obrigação
+- marcarPrestacaoComoEntregue(id, data, processo): Marca como entregue
+
+Dashboard e Busca:
+- getDashboardData(year?): Dados agregados do dashboard
+- searchDespesasByObjeto(termo): Busca despesas por objeto
+- searchCreditosByCodigo(termo): Busca créditos por código
+- searchByNotaEmpenho(termo): Busca por nota de empenho
+- searchByOrdemBancaria(termo): Busca por ordem bancária
+
+7.2 UTILITÁRIOS
+Arquivo: lib/utils.ts
+Funções:
+- cn(...classes): Combina classes CSS (clsx + tailwind-merge)
+- formatCurrency(value): Formata valor monetário (R$ X.XXX,XX)
+- formatDate(date): Formata data (DD/MM/YYYY)
+- getStatusColor(status): Retorna cor por status
+- getStatusBadgeColor(status): Retorna classes do badge
+
+================================================================================
+8. HOOKS CUSTOMIZADOS
+================================================================================
+
+8.1 useCreditos()
+Arquivo: hooks/use-creditos.ts
+Retorna:
+- creditos: Record<string, Credito>
+- creditosWithCalculations: CreditoWithCalculations[]
+- creditosDisponiveis: CreditoWithCalculations[] (com saldo > 0)
+- loading: boolean
+- error: string | null
+- createCredito(credito): Promise<string>
+- updateCredito(id, updates): Promise<void>
+- deleteCredito(id): Promise<void>
+
+8.2 useDespesas()
+Arquivo: hooks/use-despesas.ts
+Retorna:
+- despesas: Record<string, Despesa>
+- despesasWithCredits: DespesaWithCreditos[]
+- loading: boolean
+- error: string | null
+- createDespesa(despesa): Promise<string>
+- updateDespesa(id, updates): Promise<void>
+- deleteDespesa(id): Promise<void>
+- getDespesasByCredito(creditoId): DespesaWithCreditos[]
+
+8.3 usePrestacaoContas(creditoId)
+Arquivo: hooks/use-prestacoes-contas.ts
+Retorna:
+- prestacoes: PrestacaoContas[]
+- loading: boolean
+- error: string | null
+- marcarComoEntregue(id, data, processo): Promise<void>
+- vincularDespesas(id, despesaIds): Promise<void>
+
+================================================================================
+9. FLUXOS DE NEGÓCIO
+================================================================================
+
+9.1 CICLO DE VIDA DO CRÉDITO
+1. Criação do crédito com dados básicos
+2. Geração automática da primeira prestação de contas
+3. Associação de despesas ao crédito
+4. Acompanhamento de utilização e saldo
+5. Fechamento ao final do exercício
+
+9.2 CICLO DE VIDA DA DESPESA
+1. Criação com status "Planejado"
+2. Definição de fontes de recurso (múltiplos créditos)
+3. Empenho: adiciona nota de empenho e data
+4. Liquidação: processa liquidação
+5. Pagamento: adiciona ordem bancária e data
+6. Vinculação a prestação de contas
+
+9.3 CICLO DE PRESTAÇÃO DE CONTAS
+1. Geração automática ao criar crédito
+2. Período de 4 meses para preparação
+3. Vinculação de despesas relacionadas
+4. Entrega com processo SEI
+5. Geração da próxima obrigação (se aplicável)
+
+9.4 CÁLCULOS FINANCEIROS
+Saldo Disponível do Crédito:
+saldoDisponivel = valorGlobal - (valorEmpenhado + valorPago)
+
+Valor Empenhado:
+- Soma de fontesDeRecurso com notaEmpenho preenchida
+
+Valor Pago:
+- Soma de fontesDeRecurso com ordemBancaria preenchida
+
+Valor Total da Despesa:
+- Soma de todos os valores em fontesDeRecurso
+
+================================================================================
+10. REGRAS DE NEGÓCIO
+================================================================================
+
+10.1 VALIDAÇÕES DE CRÉDITO
+- Código do crédito deve ser único
+- Valor global deve ser positivo
+- Ano de exercício válido (2020-2030)
+- Data de lançamento obrigatória
+
+10.2 VALIDAÇÕES DE DESPESA
+- Processo SEI obrigatório
+- Pelo menos uma fonte de recurso
+- Valor total > 0
+- Saldo disponível no crédito suficiente
+- Status segue ordem: Planejado → Empenhado → Liquidado → Pago
+
+10.3 REGRAS DE PRESTAÇÃO DE CONTAS
+- Primeira obrigação: 4 meses após lançamento
+- Obrigações subsequentes: 4 meses após anterior
+- Status "Em Atraso": prazo vencido e não entregue
+- Nova obrigação gerada ao marcar anterior como entregue
+
+10.4 REGRAS DE EXCLUSÃO
+- Crédito não pode ser excluído se tem despesas
+- Despesa não pode ser excluída se vinculada a prestação entregue
+- Prestação entregue não pode ser alterada
+
+================================================================================
+11. SEGURANÇA E PERMISSÕES
+================================================================================
+
+11.1 FIREBASE RULES
+Arquivo: database.rules.json
+Configuração:
+- Leitura: autenticado
+- Escrita: autenticado
+- Validação de estrutura de dados
+
+11.2 VALIDAÇÕES CLIENT-SIDE
+- Sanitização de inputs
+- Validação de tipos TypeScript
+- Verificação de limites e ranges
+- Prevenção de SQL injection (N/A - NoSQL)
+
+================================================================================
+12. SCRIPTS E COMANDOS
+================================================================================
+
+12.1 DESENVOLVIMENTO
+npm run dev         - Inicia servidor de desenvolvimento (porta 3000)
+npm run build       - Gera build de produção
+npm run start       - Inicia servidor de produção
+npm run lint        - Executa linter (ESLint)
+
+12.2 IMPORTAÇÃO DE DADOS
+node scripts/importData.js - Importa dados mock para Firebase
+
+12.3 ESTRUTURA DO PACKAGE.JSON
+Dependências principais:
+- next: 15.1.5
+- react: 19.0.0
+- firebase: 11.1.0
+- tailwindcss: 3.4.0
+- recharts: 2.15.0
+- lucide-react: 0.469.0
+- typescript: 5.7.3
+
+================================================================================
+13. CONFIGURAÇÕES
+================================================================================
+
+13.1 TYPESCRIPT (tsconfig.json)
+- strict: true
+- target: ES2017
+- module: esnext
+- jsx: preserve
+- paths: "@/*" mapeia para "./*"
+
+13.2 TAILWIND (tailwind.config.ts)
+- Tema customizado com cores primary
+- Suporte a dark mode preparado
+- Classes utilitárias estendidas
+
+13.3 NEXT.JS (next.config.js)
+- reactStrictMode: true
+- App Router habilitado
+- Otimizações de produção
+
+================================================================================
+14. PONTOS DE EXTENSÃO
+================================================================================
+
+14.1 NOVOS TIPOS DE RELATÓRIO
+- Adicionar em app/relatorios/page.tsx
+- Criar componente em components/relatorios/
+- Implementar método em FirebaseService
+
+14.2 NOVOS CAMPOS EM ENTIDADES
+- Atualizar interface em types/index.ts
+- Ajustar FirebaseService
+- Atualizar formulários correspondentes
+- Migrar dados existentes se necessário
+
+14.3 NOVAS FUNCIONALIDADES
+- Criar nova rota em app/
+- Desenvolver componentes em components/
+- Adicionar hooks se necessário
+- Estender FirebaseService
+
+================================================================================
+15. TROUBLESHOOTING
+================================================================================
+
+15.1 PROBLEMAS COMUNS
+
+Erro: "Firebase not initialized"
+Solução: Verificar firebase/config.ts e credenciais
+
+Erro: "Saldo insuficiente"
+Solução: Verificar cálculos em getCreditosWithCalculations()
+
+Erro: "Despesa sem fonte de recurso"
+Solução: Validar fontesDeRecurso antes de salvar
+
+15.2 DEBUGGING
+- Console do navegador para erros client-side
+- Aba Network para requisições Firebase
+- React DevTools para estado dos componentes
+- Firebase Console para dados em tempo real
+
+================================================================================
+16. MANUTENÇÃO E BOAS PRÁTICAS
+================================================================================
+
+16.1 PADRÕES DE CÓDIGO
+- Componentes funcionais com hooks
+- TypeScript para type safety
+- Async/await para operações assíncronas
+- Tratamento de erros com try/catch
+
+16.2 PERFORMANCE
+- Lazy loading de componentes pesados
+- Memoização com useMemo/useCallback
+- Debounce em campos de busca
+- Paginação para listas grandes
+
+16.3 TESTES
+- Testar CRUD operations
+- Validar cálculos financeiros
+- Verificar regras de negócio
+- Testar fluxos completos
+
+================================================================================
+FIM DA DOCUMENTAÇÃO
+================================================================================
+
+Esta documentação representa o estado atual do sistema SUAD CBMERJ.
+Última atualização: Dezembro 2024
+Versão: 1.0.0
+
+Para suporte técnico ou dúvidas sobre o sistema, consultar a equipe de
+desenvolvimento da Superintendência Administrativa do CBMERJ.

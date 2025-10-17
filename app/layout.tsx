@@ -1,13 +1,10 @@
-import type { Metadata } from "next";
+'use client';
+
 import { Inter } from "next/font/google";
 import "./globals.css";
+import AuthGuard from "@/components/auth-guard";
 
 const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "SUAD CBMERJ - Superintendência Administrativa",
-  description: "Sistema de gestão orçamentária e financeira do CBMERJ",
-};
 
 export default function RootLayout({
   children,
@@ -16,7 +13,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <AuthGuard>
+          {children}
+        </AuthGuard>
+      </body>
     </html>
   );
 }

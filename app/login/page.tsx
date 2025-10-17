@@ -78,7 +78,6 @@ export default function LoginPage() {
             <Shield className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900">SUAD CBMERJ</h1>
-          <p className="text-gray-600 mt-2">Sistema Unificado de Acompanhamento de Despesas</p>
         </div>
 
         {/* Card de Login */}
